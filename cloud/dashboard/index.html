@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f7c9d9">
+  <title>Pet Guardian Cloud</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body data-theme="blossom">
+  <div class="backdrop backdrop-a"></div>
+  <div class="backdrop backdrop-b"></div>
+
+  <main class="app-shell">
+    <header class="hero-card panel">
+      <div class="hero-copy">
+        <p class="micro-label">Pet Guardian Cloud</p>
+        <h1>Um cantinho fofo para acompanhar o bem-estar do pet de qualquer lugar.</h1>
+        <p class="hero-text">O app junta conforto, alimentacao, agua, iluminacao e alertas em uma leitura leve, clara e gostosa de usar no celular.</p>
+      </div>
+
+      <div class="hero-meta">
+        <div class="presence-pill" id="connectionBadge">Aguardando nuvem</div>
+        <p class="sync-copy" id="lastSyncLabel">Sem sincronizacao recente</p>
+
+        <section class="theme-picker panel-soft" aria-label="Escolher tema">
+          <div class="theme-head">
+            <span class="micro-label">Temas</span>
+            <strong>Escolha seu clima</strong>
+          </div>
+          <div class="theme-grid" id="themeSelector"></div>
+        </section>
+      </div>
+    </header>
+
+    <section class="summary-row">
+      <article class="panel summary-card summary-device">
+        <div>
+          <span class="micro-label">Dispositivo</span>
+          <strong id="deviceName">Pet Hub</strong>
+          <p id="deviceSubtitle">ESP32 + Pico W</p>
+        </div>
+        <span class="chip" id="deviceType">ESP32</span>
+      </article>
+
+      <article class="panel summary-card summary-mode">
+        <span class="micro-label">Modo</span>
+        <strong id="networkMode">Nuvem</strong>
+        <p>PWA pastel, responsivo e pronto para atalho na tela inicial.</p>
+      </article>
+
+      <article class="panel summary-card summary-alert">
+        <span class="micro-label">Ultimo sinal</span>
+        <strong id="alertHeadline">Tudo tranquilo</strong>
+        <p id="alertSupport">Sem anomalias recentes.</p>
+      </article>
+    </section>
+
+    <section class="metrics-grid">
+      <article class="panel metric-card metric-card-wide">
+        <div class="metric-head">
+          <div>
+            <span class="micro-label">Conforto</span>
+            <h2>Clima do ambiente</h2>
+          </div>
+          <span class="bubble-tag" id="comfortTag">Estavel</span>
+        </div>
+        <div class="metric-duo">
+          <div>
+            <span class="tiny-label">Temperatura</span>
+            <strong id="temperatureValue">--</strong>
+          </div>
+          <div>
+            <span class="tiny-label">Umidade</span>
+            <strong id="humidityValue">--</strong>
+          </div>
+        </div>
+        <div class="mini-chart" id="comfortChart"></div>
+      </article>
+
+      <article class="panel metric-card">
+        <div class="metric-head">
+          <div>
+            <span class="micro-label">Racao e agua</span>
+            <h2>Reserva atual</h2>
+          </div>
+        </div>
+        <div class="meter-stack">
+          <label for="foodBar">Racao</label>
+          <div class="meter-shell"><span id="foodBar"></span></div>
+          <strong id="foodValue">--</strong>
+        </div>
+        <div class="meter-stack">
+          <label for="waterBar">Agua</label>
+          <div class="meter-shell"><span id="waterBar"></span></div>
+          <strong id="waterValue">--</strong>
+        </div>
+      </article>
+
+      <article class="panel metric-card">
+        <div class="metric-head">
+          <div>
+            <span class="micro-label">Ambiente</span>
+            <h2>Sinais do espaco</h2>
+          </div>
+        </div>
+        <div class="signal-grid">
+          <div><span class="tiny-label">Luz</span><strong id="lightValue">--</strong></div>
+          <div><span class="tiny-label">Gas</span><strong id="gasValue">--</strong></div>
+          <div><span class="tiny-label">Presenca</span><strong id="motionValue">--</strong></div>
+          <div><span class="tiny-label">Escuridao</span><strong id="darkValue">--</strong></div>
+        </div>
+      </article>
+
+      <article class="panel metric-card">
+        <div class="metric-head">
+          <div>
+            <span class="micro-label">Atuadores</span>
+            <h2>O que o sistema fez</h2>
+          </div>
+        </div>
+        <div class="signal-grid compact-grid">
+          <div><span class="tiny-label">Lampada</span><strong id="lampState">--</strong></div>
+          <div><span class="tiny-label">Bomba</span><strong id="pumpState">--</strong></div>
+          <div><span class="tiny-label">Comedouro</span><strong id="feedState">--</strong></div>
+          <div><span class="tiny-label">Alerta</span><strong id="alertState">--</strong></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="details-layout">
+      <article class="panel history-panel">
+        <div class="section-head">
+          <div>
+            <span class="micro-label">Historico</span>
+            <h2>Ultimas leituras do hub</h2>
+          </div>
+          <button id="refreshButton" class="action-button" type="button">Atualizar</button>
+        </div>
+        <div class="timeline-list" id="timelineList"></div>
+      </article>
+
+      <div class="aside-stack">
+        <article class="panel insight-panel">
+          <div class="section-head">
+            <div>
+              <span class="micro-label">Leitura inteligente</span>
+              <h2>Resumo carinhoso</h2>
+            </div>
+          </div>
+          <ul class="insight-list" id="insightList"></ul>
+        </article>
+
+        <article class="panel cloud-panel">
+          <span class="micro-label">Pronto para crescer</span>
+          <h2>Integracao em nuvem e camera futura</h2>
+          <p>O app ja conversa com a camada cloud e a estrutura esta pronta para encaixar a ESP32-CAM depois, sem redesenhar a experiencia.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

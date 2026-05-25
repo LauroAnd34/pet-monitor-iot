@@ -1,0 +1,5 @@
+.vercel/
+cloud/dashboard/vercel-deploy.out.txt
+cloud/dashboard/vercel-deploy.err.txt
+cloud/dashboard/vercel-link.out.txt
+cloud/dashboard/vercel-link.err.txt

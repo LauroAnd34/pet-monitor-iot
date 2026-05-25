@@ -1,0 +1,9 @@
+{
+  "name": "Pet Guardian Cloud",
+  "short_name": "PetCloud",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fff8fb",
+  "theme_color": "#f7c9d9",
+  "description": "Dashboard PWA fofo e pastel para monitoramento do sistema IoT pet guardian."
+}
