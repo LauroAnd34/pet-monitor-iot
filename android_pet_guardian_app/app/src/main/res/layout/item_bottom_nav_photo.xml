@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/navPhoto"
+    android:layout_width="0dp"
+    android:layout_height="match_parent"
+    android:layout_weight="1"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center"
+    android:orientation="vertical">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/photoBubble"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        app:cardBackgroundColor="@color/theme_primary"
+        app:cardCornerRadius="26dp"
+        app:strokeColor="@color/theme_border"
+        app:strokeWidth="1dp">
+
+        <ImageView
+            android:id="@+id/navPhotoIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_paw"
+            android:tint="@color/theme_primary_text" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:id="@+id/navPhotoLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/tab_photo"
+        android:textColor="@color/bottom_nav_inactive"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+</LinearLayout>
