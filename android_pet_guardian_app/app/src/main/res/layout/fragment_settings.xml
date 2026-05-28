@@ -461,18 +461,17 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
-                        android:layout_marginEnd="6dp"
                         android:layout_weight="1"
                         android:text="@string/settings_animation_normal" />
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/animationVivid"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:layout_weight="1"
-                        android:text="@string/settings_animation_vivid" />
                 </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/animationVivid"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/settings_animation_vivid" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -510,18 +509,17 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
-                        android:layout_marginEnd="6dp"
                         android:layout_weight="1"
                         android:text="@string/settings_start_history" />
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/startControls"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:layout_weight="1"
-                        android:text="@string/settings_start_controls" />
                 </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/startControls"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/settings_start_controls" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>

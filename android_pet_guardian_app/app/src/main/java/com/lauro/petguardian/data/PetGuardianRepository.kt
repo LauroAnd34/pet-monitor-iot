@@ -1,4 +1,4 @@
-package com.lauro.petguardian.data
+ï»¿package com.lauro.petguardian.data
 
 import com.lauro.petguardian.AppConfig
 import com.lauro.petguardian.PetGuardianApp
@@ -52,7 +52,7 @@ object PetGuardianRepository {
                 }
                 val payload = readResponse(connection)
                 if (connection.responseCode !in 200..299) {
-                    error(payload.ifBlank { "Não foi possível enviar o comando." })
+                    error(payload.ifBlank { "Nao foi possivel enviar o comando." })
                 }
                 JSONObject(payload).optString("message").ifBlank { "Comando enviado com sucesso." }
             }.onSuccess {
@@ -145,3 +145,5 @@ object PetGuardianRepository {
     private fun JSONObject.optDoubleOrNull(key: String): Double? = if (isNull(key)) null else optDouble(key)
     private fun JSONObject.optIntOrNull(key: String): Int? = if (isNull(key)) null else optInt(key)
 }
+
+

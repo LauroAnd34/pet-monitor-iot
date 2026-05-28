@@ -45,7 +45,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="10dp"
-                    android:text="Ração"
+                    android:text="Racao"
                     android:textColor="@color/theme_secondary_text"
                     android:textSize="12sp"
                     android:textStyle="bold" />

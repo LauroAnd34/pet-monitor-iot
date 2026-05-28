@@ -36,7 +36,7 @@ object PhotoAlbumStore {
             status = "queued",
             album = albumForReason(reason),
             reason = reason,
-            note = "Aguardando a próxima captura da câmera do sistema."
+            note = "Aguardando a proxima captura da camera do sistema."
         )
         val current = loadMutable()
         current.add(0, entry)
@@ -54,12 +54,12 @@ object PhotoAlbumStore {
     }
 
     fun todayCount(): Int = all().count { it.album == "Hoje" }
-    fun weekCount(): Int = all().count { it.album == "Últimos 7 dias" }
+    fun weekCount(): Int = all().count { it.album == "Ultimos 7 dias" }
     fun eventCount(): Int = all().count { it.album == "Momentos marcados" }
 
     private fun albumForReason(reason: String): String = when (reason) {
         "alert" -> "Momentos marcados"
-        "weekly" -> "Últimos 7 dias"
+        "weekly" -> "Ultimos 7 dias"
         else -> "Hoje"
     }
 

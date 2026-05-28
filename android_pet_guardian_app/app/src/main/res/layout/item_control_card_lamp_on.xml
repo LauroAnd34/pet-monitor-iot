@@ -4,7 +4,6 @@
     android:layout_width="0dp"
     android:layout_height="188dp"
     android:layout_weight="1"
-    android:layout_marginEnd="6dp"
     app:cardBackgroundColor="@color/theme_surface"
     app:cardCornerRadius="24dp"
     app:strokeColor="@color/theme_border"
@@ -19,13 +18,13 @@
         <FrameLayout
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="@drawable/metric_badge_pink">
+            android:background="@drawable/metric_badge_yellow">
 
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_metric_lamp"
+                android:src="@drawable/ic_metric_light"
                 android:tint="@color/theme_primary_text" />
         </FrameLayout>
 
@@ -33,7 +32,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:text="Luz ligada"
+            android:text="Luz manual"
             android:textColor="@color/theme_primary_text"
             android:textSize="16sp"
             android:textStyle="bold" />
@@ -42,7 +41,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="MantÃ©m o ambiente iluminado."
+            android:text="Mantem o ambiente iluminado."
             android:textColor="@color/theme_secondary_text"
             android:textSize="13sp" />
 

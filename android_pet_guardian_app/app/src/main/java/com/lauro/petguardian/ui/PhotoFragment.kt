@@ -49,23 +49,22 @@ class PhotoFragment : Fragment() {
 
     private fun schedulePhotoStages(photoId: String) {
         handler.postDelayed({
-            PhotoAlbumStore.updateStatus(photoId, "waiting", "Aguardando a cÃ¢mera do sistema responder ao pedido.")
+            PhotoAlbumStore.updateStatus(photoId, "waiting", "Aguardando a camera do sistema responder ao pedido.")
             refreshContent(photoId)
         }, 1400)
         handler.postDelayed({
-            PhotoAlbumStore.updateStatus(photoId, "received", "PrÃ©via recebida pelo app. Quando a cÃ¢mera real entrar, a imagem definitiva virÃ¡ daqui.")
+            PhotoAlbumStore.updateStatus(photoId, "received", "Previa recebida pelo app. Quando a camera real entrar, a imagem definitiva vira daqui.")
             refreshContent(photoId)
         }, 3600)
         handler.postDelayed({
-            PhotoAlbumStore.updateStatus(photoId, "saved", "Captura guardada no Ã¡lbum. Toque para ver o detalhe e a origem da solicitaÃ§Ã£o.")
+            PhotoAlbumStore.updateStatus(photoId, "saved", "Captura guardada no album. Toque para ver o detalhe e a origem da solicitacao.")
             refreshContent(photoId)
         }, 5600)
     }
 
     private fun refreshContent(highlightId: String? = null) {
         if (_binding == null) return
-        val items = PhotoAlbumStore.all()
-        val latest = items.firstOrNull()
+        val latest = PhotoAlbumStore.all().firstOrNull()
         binding.todayCount.text = PhotoAlbumStore.todayCount().toString()
         binding.weekCount.text = PhotoAlbumStore.weekCount().toString()
         binding.eventsCount.text = PhotoAlbumStore.eventCount().toString()
@@ -82,17 +81,17 @@ class PhotoFragment : Fragment() {
             return
         }
 
-        val (badgeText, badgeDrawable, iconRes) = when (latest.status) {
-            "requested" -> Triple(getString(R.string.photo_status_requested), R.drawable.metric_badge_blue, R.drawable.ic_nav_photo)
-            "waiting" -> Triple(getString(R.string.photo_status_waiting), R.drawable.metric_badge_yellow, R.drawable.ic_metric_sync)
-            "received" -> Triple(getString(R.string.photo_status_received), R.drawable.metric_badge_green, R.drawable.ic_metric_motion)
-            "saved" -> Triple(getString(R.string.photo_status_saved), R.drawable.metric_badge_green, R.drawable.ic_paw)
-            else -> Triple(getString(R.string.photo_status_failed), R.drawable.metric_badge_yellow, R.drawable.ic_metric_gas)
+        val (badgeDrawable, iconRes) = when (latest.status) {
+            "requested" -> Pair(R.drawable.metric_badge_blue, R.drawable.ic_nav_photo)
+            "waiting" -> Pair(R.drawable.metric_badge_yellow, R.drawable.ic_metric_sync)
+            "received" -> Pair(R.drawable.metric_badge_green, R.drawable.ic_metric_motion)
+            "saved" -> Pair(R.drawable.metric_badge_green, R.drawable.ic_paw)
+            else -> Pair(R.drawable.metric_badge_yellow, R.drawable.ic_metric_gas)
         }
 
         binding.latestAlbumBadge.text = latest.album
         binding.latestAlbumBadge.setBackgroundResource(badgeDrawable)
-        binding.photoStatusTitle.text = badgeText
+        binding.photoStatusTitle.text = statusLabel(latest.status)
         binding.photoStatusBody.text = latest.note
         binding.photoCaption.text = UiFormatters.date(latest.requestedAt)
         binding.openLatestButton.isEnabled = true
@@ -123,8 +122,8 @@ class PhotoFragment : Fragment() {
 
     private fun reasonLabel(reason: String): String = when (reason) {
         "alert" -> "Alerta do sistema"
-        "weekly" -> "RevisÃ£o semanal"
-        else -> "SolicitaÃ§Ã£o manual"
+        "weekly" -> "Revisao semanal"
+        else -> "Solicitacao manual"
     }
 
     private fun statusLabel(status: String): String = when (status) {

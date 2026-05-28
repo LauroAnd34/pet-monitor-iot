@@ -1,4 +1,4 @@
-package com.lauro.petguardian.ui
+﻿package com.lauro.petguardian.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -107,7 +107,7 @@ class HistoryFragment : Fragment() {
             Filter.WEEK -> fullHistory.filter { UiFormatters.isWithinLastDays(it.createdAt, 7) }
             Filter.ALERTS -> fullHistory.filter { it.alertText.isNotBlank() }
             Filter.MOTION -> fullHistory.filter { it.motionDetected }
-            Filter.FEED -> fullHistory.filter { it.feedMotorOn || it.alertText.contains("ração", ignoreCase = true) }
+            Filter.FEED -> fullHistory.filter { it.feedMotorOn || it.alertText.contains("racao", ignoreCase = true) }
         }
         adapter.setShowRelativeTime(ThemeManager.relativeTimeEnabled(requireContext()))
         adapter.submitList(filtered)
@@ -158,3 +158,4 @@ class HistoryFragment : Fragment() {
         _binding = null
     }
 }
+

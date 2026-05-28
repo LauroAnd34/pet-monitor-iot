@@ -1,4 +1,4 @@
-package com.lauro.petguardian.ui
+﻿package com.lauro.petguardian.ui
 
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
@@ -182,7 +182,7 @@ class HomeFragment : Fragment() {
 
     private fun text(root: View, id: Int, value: String) { root.findViewById<TextView>(id).text = value }
     private fun summaryText(alert: String, motion: Boolean, dark: Boolean, lampOn: Boolean, offline: Boolean): String {
-        if (offline) return "Mostrando a última leitura salva localmente enquanto a nuvem não responde."
+        if (offline) return "Mostrando a ultima leitura salva localmente enquanto a nuvem nao responde."
         if (alert.isNotBlank()) return alert
         return when {
             dark && motion && lampOn -> getString(R.string.summary_dark_motion_lamp)

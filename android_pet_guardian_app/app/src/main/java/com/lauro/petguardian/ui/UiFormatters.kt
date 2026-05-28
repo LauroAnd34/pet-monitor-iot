@@ -10,7 +10,7 @@ object UiFormatters {
     fun percent(value: Int?): String = value?.let { "$it%" } ?: "--"
 
     fun temperature(value: Double?): String =
-        value?.let { String.format(Locale("pt", "BR"), "%.1f °C", it) } ?: "--"
+        value?.let { String.format(Locale("pt", "BR"), "%.1f  C", it) } ?: "--"
 
     fun humidity(value: Double?): String =
         value?.let { String.format(Locale("pt", "BR"), "%.0f%%", it) } ?: "--"
@@ -37,9 +37,9 @@ object UiFormatters {
 
     fun date(value: String): String {
         val parsed = parseDateOrNull(value) ?: return value.ifBlank {
-            SimpleDateFormat("dd/MM • HH:mm", Locale("pt", "BR")).format(Date())
+            SimpleDateFormat("dd/MM  -  HH:mm", Locale("pt", "BR")).format(Date())
         }
-        return SimpleDateFormat("dd/MM • HH:mm", Locale("pt", "BR")).format(parsed)
+        return SimpleDateFormat("dd/MM  -  HH:mm", Locale("pt", "BR")).format(parsed)
     }
 
     fun dayHeader(value: String): String {
@@ -56,13 +56,13 @@ object UiFormatters {
     }
 
     fun relativeTime(value: String): String {
-        val parsed = parseDateOrNull(value) ?: return "Horário indisponível"
+        val parsed = parseDateOrNull(value) ?: return "Horario indisponivel"
         val diffSeconds = ((System.currentTimeMillis() - parsed.time) / 1000).coerceAtLeast(0)
         return when {
-            diffSeconds < 60 -> "Agora há pouco"
-            diffSeconds < 3600 -> "Há ${diffSeconds / 60} min"
-            diffSeconds < 86400 -> "Há ${diffSeconds / 3600} h"
-            else -> "Há ${diffSeconds / 86400} d"
+            diffSeconds < 60 -> "Agora ha pouco"
+            diffSeconds < 3600 -> "Ha ${diffSeconds / 60} min"
+            diffSeconds < 86400 -> "Ha ${diffSeconds / 3600} h"
+            else -> "Ha ${diffSeconds / 86400} d"
         }
     }
 

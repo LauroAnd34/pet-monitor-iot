@@ -1,8 +1,9 @@
-package com.lauro.petguardian
+ï»¿package com.lauro.petguardian
 
 import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -42,6 +43,7 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
     private val headerCard by lazy { findViewById<MaterialCardView>(R.id.headerCard) }
     private val photoBubble by lazy { findViewById<MaterialCardView>(R.id.photoBubble) }
     private val headerAvatar by lazy { findViewById<ShapeableImageView>(R.id.headerAvatar) }
+    private var photoBubbleBreathing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,6 +55,7 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
         applyTextScale()
         refreshAvatar()
         updateHeaderLabels(null)
+        refreshGlobalAnimations()
         if (savedInstanceState == null) {
             openTab(defaultTab())
         }
@@ -63,7 +66,7 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
         if (ProfileManager.onboardingSeen(this)) return
         MaterialAlertDialogBuilder(this)
             .setTitle("Bem-vindo ao Meu Pet")
-            .setMessage("O app conversa com o hub do pet, mostra ambiente, histórico, comandos remotos e já está preparado para câmera e automações mais avançadas.")
+            .setMessage("O app conversa com o hub do pet, mostra ambiente, historico, comandos remotos e ja esta preparado para camera e automacoes mais avancadas.")
             .setPositiveButton("Entendi") { dialog, _ ->
                 ProfileManager.saveOnboardingSeen(this)
                 dialog.dismiss()
@@ -110,6 +113,7 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
     override fun onThemeSelected(themeId: String) {
         ThemeManager.save(this, themeId)
         applyThemePalette(ThemeManager.current(this))
+        refreshGlobalAnimations()
         supportFragmentManager.fragments.forEach { fragment ->
             if (fragment is SettingsFragment) fragment.refreshThemeState()
         }
@@ -123,6 +127,7 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
         applyThemePalette(ThemeManager.current(this))
         applyTextScale()
         refreshAvatar()
+        refreshGlobalAnimations()
         updateHeaderLabels(null)
         openTab(currentTab)
     }
@@ -146,6 +151,7 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
                 headerAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE
             }
         }
+        animateAvatarRefresh()
     }
 
     private fun applyTextScale() {
@@ -196,19 +202,93 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
         decorateNav(navPhotoIcon, navPhotoLabel, tab == MainTab.PHOTO, palette, true)
         decorateNav(navControlsIcon, navControlsLabel, tab == MainTab.CONTROLS, palette)
         decorateNav(navSettingsIcon, navSettingsLabel, tab == MainTab.SETTINGS, palette)
-        photoBubble.alpha = if (tab == MainTab.PHOTO) 1f else 0.96f
-        photoBubble.scaleX = if (tab == MainTab.PHOTO) 1.03f else 1f
-        photoBubble.scaleY = if (tab == MainTab.PHOTO) 1.03f else 1f
+        val selectedScale = if (tab == MainTab.PHOTO) 1.06f else 1f
+        val selectedAlpha = if (tab == MainTab.PHOTO) 1f else 0.94f
+        photoBubble.animate()
+            .scaleX(selectedScale)
+            .scaleY(selectedScale)
+            .alpha(selectedAlpha)
+            .setDuration(220)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .start()
     }
 
     private fun decorateNav(icon: ImageView, label: TextView, active: Boolean, palette: ThemePalette, center: Boolean = false) {
         val color = if (active) palette.primaryDark else palette.softText
         icon.imageTintList = ColorStateList.valueOf(color)
         label.setTextColor(color)
-        icon.alpha = if (active) 1f else 0.74f
-        label.alpha = if (active) 1f else if (center) 0.9f else 0.82f
-        icon.scaleX = if (active) 1.08f else 1f
-        icon.scaleY = if (active) 1.08f else 1f
+        val targetIconAlpha = if (active) 1f else 0.74f
+        val targetLabelAlpha = if (active) 1f else if (center) 0.9f else 0.82f
+        val iconScale = if (active) 1.1f else 1f
+        icon.animate()
+            .alpha(targetIconAlpha)
+            .scaleX(iconScale)
+            .scaleY(iconScale)
+            .setDuration(220)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .start()
+        label.animate()
+            .alpha(targetLabelAlpha)
+            .setDuration(220)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .start()
+    }
+
+    private fun refreshGlobalAnimations() {
+        if (ThemeManager.animationsEnabled(this)) {
+            startPhotoBubbleBreathing()
+        } else {
+            photoBubbleBreathing = false
+            photoBubble.animate().cancel()
+            photoBubble.scaleX = if (currentTab == MainTab.PHOTO) 1.06f else 1f
+            photoBubble.scaleY = if (currentTab == MainTab.PHOTO) 1.06f else 1f
+            photoBubble.translationY = 0f
+            headerAvatar.animate().cancel()
+        }
+    }
+
+    private fun startPhotoBubbleBreathing() {
+        if (photoBubbleBreathing) return
+        photoBubbleBreathing = true
+
+        fun pulse() {
+            if (!photoBubbleBreathing || !ThemeManager.animationsEnabled(this)) return
+            val boost = if (currentTab == MainTab.PHOTO) 1.08f else 1.03f
+            photoBubble.animate()
+                .translationY(-3f)
+                .scaleX(boost)
+                .scaleY(boost)
+                .setDuration(900)
+                .setInterpolator(AccelerateDecelerateInterpolator())
+                .withEndAction {
+                    photoBubble.animate()
+                        .translationY(0f)
+                        .scaleX(if (currentTab == MainTab.PHOTO) 1.06f else 1f)
+                        .scaleY(if (currentTab == MainTab.PHOTO) 1.06f else 1f)
+                        .setDuration(900)
+                        .setInterpolator(AccelerateDecelerateInterpolator())
+                        .withEndAction { pulse() }
+                        .start()
+                }
+                .start()
+        }
+
+        pulse()
+    }
+
+    private fun animateAvatarRefresh() {
+        if (!ThemeManager.animationsEnabled(this)) return
+        headerAvatar.animate().cancel()
+        headerAvatar.scaleX = 0.94f
+        headerAvatar.scaleY = 0.94f
+        headerAvatar.alpha = 0.75f
+        headerAvatar.animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .alpha(1f)
+            .setDuration(260)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .start()
     }
 }
 
