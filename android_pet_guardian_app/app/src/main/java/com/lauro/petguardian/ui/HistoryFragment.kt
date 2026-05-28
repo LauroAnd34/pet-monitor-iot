@@ -4,19 +4,38 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.button.MaterialButton
 import com.lauro.petguardian.MainActivity
 import com.lauro.petguardian.R
+import com.lauro.petguardian.ThemeManager
+import com.lauro.petguardian.data.HistoryEntry
 import com.lauro.petguardian.data.PetGuardianRepository
 import com.lauro.petguardian.databinding.FragmentHistoryBinding
 import com.lauro.petguardian.ui.history.HistoryAdapter
 
 class HistoryFragment : Fragment() {
+    private enum class Filter { ALL, TODAY, WEEK, ALERTS, MOTION, FEED }
+
     private var _binding: FragmentHistoryBinding? = null
     private val binding get() = _binding!!
     private val adapter = HistoryAdapter()
+    private var fullHistory: List<HistoryEntry> = emptyList()
+    private var currentFilter: Filter = Filter.ALL
+
+    private val autoRefreshRunnable = object : Runnable {
+        override fun run() {
+            if (_binding != null && isAdded && ThemeManager.autoRefreshEnabled(requireContext())) {
+                loadHistory(false)
+                binding.root.postDelayed(this, 45000)
+            }
+        }
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHistoryBinding.inflate(inflater, container, false)
@@ -27,21 +46,51 @@ class HistoryFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.historyList.layoutManager = LinearLayoutManager(requireContext())
         binding.historyList.adapter = adapter
-        binding.swipeRefresh.setOnRefreshListener { loadHistory() }
-        loadHistory()
+        binding.swipeRefresh.setOnRefreshListener { loadHistory(true) }
+        binding.filterAllButton.setOnClickListener { selectFilter(Filter.ALL) }
+        binding.filterTodayButton.setOnClickListener { selectFilter(Filter.TODAY) }
+        binding.filterWeekButton.setOnClickListener { selectFilter(Filter.WEEK) }
+        binding.filterAlertsButton.setOnClickListener { selectFilter(Filter.ALERTS) }
+        binding.filterMotionButton.setOnClickListener { selectFilter(Filter.MOTION) }
+        binding.filterFeedButton.setOnClickListener { selectFilter(Filter.FEED) }
+        updateFilterButtons()
+        loadHistory(true)
     }
 
-    private fun loadHistory() {
-        binding.swipeRefresh.isRefreshing = true
+    override fun onResume() {
+        super.onResume()
+        binding.root.removeCallbacks(autoRefreshRunnable)
+        if (ThemeManager.autoRefreshEnabled(requireContext())) {
+            binding.root.postDelayed(autoRefreshRunnable, 45000)
+        }
+    }
+
+    override fun onPause() {
+        binding.root.removeCallbacks(autoRefreshRunnable)
+        super.onPause()
+    }
+
+    private fun selectFilter(filter: Filter) {
+        currentFilter = filter
+        updateFilterButtons()
+        applyHistory()
+    }
+
+    private fun loadHistory(showLoading: Boolean) {
+        if (showLoading) binding.swipeRefresh.isRefreshing = true
         PetGuardianRepository.fetchDashboard(40) { result ->
             activity?.runOnUiThread {
                 binding.swipeRefresh.isRefreshing = false
                 result.onSuccess { payload ->
-                    adapter.submitList(payload.history)
-                    binding.emptyState.visibility = if (payload.history.isEmpty()) View.VISIBLE else View.GONE
+                    fullHistory = payload.history
+                    applyHistory()
                     val recent = UiFormatters.isRecent(payload.snapshot.createdAt)
-                    val statusText = if (recent) getString(R.string.status_recent) else getString(R.string.status_stale)
-                    (activity as? MainActivity)?.updateStatus(statusText, recent)
+                    val statusText = when {
+                        payload.isCached -> getString(R.string.status_offline)
+                        recent -> getString(R.string.status_recent)
+                        else -> getString(R.string.status_stale)
+                    }
+                    (activity as? MainActivity)?.updateStatus(statusText, recent && !payload.isCached)
                     (activity as? MainActivity)?.updateSnapshot(payload)
                 }.onFailure {
                     (activity as? MainActivity)?.updateStatus(getString(R.string.status_offline), false)
@@ -50,6 +99,59 @@ class HistoryFragment : Fragment() {
             }
         }
     }
+
+    private fun applyHistory() {
+        val filtered = when (currentFilter) {
+            Filter.ALL -> fullHistory
+            Filter.TODAY -> fullHistory.filter { UiFormatters.isToday(it.createdAt) }
+            Filter.WEEK -> fullHistory.filter { UiFormatters.isWithinLastDays(it.createdAt, 7) }
+            Filter.ALERTS -> fullHistory.filter { it.alertText.isNotBlank() }
+            Filter.MOTION -> fullHistory.filter { it.motionDetected }
+            Filter.FEED -> fullHistory.filter { it.feedMotorOn || it.alertText.contains("ração", ignoreCase = true) }
+        }
+        adapter.setShowRelativeTime(ThemeManager.relativeTimeEnabled(requireContext()))
+        adapter.submitList(filtered)
+        binding.emptyState.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
+        binding.totalReadingsValue.text = filtered.size.toString()
+        binding.alertReadingsValue.text = filtered.count { it.alertText.isNotBlank() }.toString()
+        binding.motionReadingsValue.text = filtered.count { it.motionDetected }.toString()
+        binding.summaryLabel.text = when (currentFilter) {
+            Filter.ALL -> getString(R.string.history_summary_all)
+            Filter.TODAY -> getString(R.string.history_summary_today)
+            Filter.WEEK -> getString(R.string.history_summary_week)
+            Filter.ALERTS -> getString(R.string.history_summary_alerts)
+            Filter.MOTION -> getString(R.string.history_summary_motion)
+            Filter.FEED -> getString(R.string.history_summary_feed)
+        }
+        updateTrend(binding.temperatureTrend, binding.temperatureTrendLabel, filtered.mapNotNull { it.temperatureC }.averageDoubleOrNull()?.let { (it / 40.0 * 100).toInt() } ?: 0, filtered.mapNotNull { it.temperatureC }.averageDoubleOrNull()?.let { UiFormatters.temperature(it) } ?: "--")
+        updateTrend(binding.humidityTrend, binding.humidityTrendLabel, filtered.mapNotNull { it.humidity }.averageDoubleOrNull()?.toInt() ?: 0, filtered.mapNotNull { it.humidity }.averageDoubleOrNull()?.let { UiFormatters.humidity(it) } ?: "--")
+        updateTrend(binding.foodTrend, binding.foodTrendLabel, filtered.mapNotNull { it.foodLevelPercent }.averageIntOrNull()?.toInt() ?: 0, filtered.mapNotNull { it.foodLevelPercent }.averageIntOrNull()?.toInt()?.let { "$it%" } ?: "--")
+    }
+
+    private fun updateTrend(bar: ProgressBar, label: TextView, progress: Int, value: String) {
+        bar.progress = progress.coerceIn(0, 100)
+        label.text = value
+    }
+
+    private fun updateFilterButtons() {
+        styleFilterButton(binding.filterAllButton, currentFilter == Filter.ALL)
+        styleFilterButton(binding.filterTodayButton, currentFilter == Filter.TODAY)
+        styleFilterButton(binding.filterWeekButton, currentFilter == Filter.WEEK)
+        styleFilterButton(binding.filterAlertsButton, currentFilter == Filter.ALERTS)
+        styleFilterButton(binding.filterMotionButton, currentFilter == Filter.MOTION)
+        styleFilterButton(binding.filterFeedButton, currentFilter == Filter.FEED)
+    }
+
+    private fun styleFilterButton(button: MaterialButton, selected: Boolean) {
+        val bg = if (selected) R.color.theme_primary else R.color.theme_surface
+        val text = if (selected) android.R.color.white else R.color.theme_primary_text
+        button.setBackgroundColor(ContextCompat.getColor(requireContext(), bg))
+        button.setTextColor(ContextCompat.getColor(requireContext(), text))
+        button.strokeColor = ContextCompat.getColorStateList(requireContext(), R.color.theme_border)
+    }
+
+    private fun List<Double>.averageDoubleOrNull(): Double? = if (isEmpty()) null else average()
+    private fun List<Int>.averageIntOrNull(): Double? = if (isEmpty()) null else average()
 
     override fun onDestroyView() {
         super.onDestroyView()

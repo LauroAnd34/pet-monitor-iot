@@ -5,6 +5,15 @@ import android.graphics.Color
 
 private const val PREFS_NAME = "pet_guardian_prefs"
 private const val PREF_THEME = "theme_id"
+private const val PREF_AVATAR_PATH = "avatar_path"
+private const val PREF_ANIMATIONS = "animations_enabled"
+private const val PREF_AUTO_REFRESH = "auto_refresh_enabled"
+private const val PREF_RELATIVE_TIME = "relative_time_enabled"
+private const val PREF_TEXT_SCALE = "text_scale"
+private const val PREF_ANIMATION_INTENSITY = "animation_intensity"
+private const val PREF_SHOW_GAS = "show_gas"
+private const val PREF_SHOW_SYNC = "show_sync"
+private const val PREF_START_TAB = "start_tab"
 
 data class ThemePalette(
     val id: String,
@@ -22,26 +31,42 @@ data class ThemePalette(
 
 object ThemeManager {
     private val palettes = listOf(
-        ThemePalette("blossom", "Algodão Doce", Color.parseColor("#F29BB2"), Color.parseColor("#DB5F87"), Color.parseColor("#FFFDFD"), Color.parseColor("#FFF2F6"), Color.parseColor("#F3D8E2"), Color.parseColor("#5B3241"), Color.parseColor("#8D6271"), Color.parseColor("#FFD7E4"), Color.parseColor("#FFEAF1")),
-        ThemePalette("mint", "Jardim de Hortelã", Color.parseColor("#77D8B7"), Color.parseColor("#2E9C75"), Color.parseColor("#FBFFFD"), Color.parseColor("#EEFDF7"), Color.parseColor("#D1EEDF"), Color.parseColor("#214838"), Color.parseColor("#5F8474"), Color.parseColor("#BDEFD8"), Color.parseColor("#DFFBF0")),
-        ThemePalette("butter", "Creme Solar", Color.parseColor("#F2C467"), Color.parseColor("#D69527"), Color.parseColor("#FFFDF8"), Color.parseColor("#FFF7DE"), Color.parseColor("#F0E0AF"), Color.parseColor("#5D4716"), Color.parseColor("#8B7443"), Color.parseColor("#FFE09A"), Color.parseColor("#FFF0C8")),
-        ThemePalette("cocoa", "Café com Leite", Color.parseColor("#D8A17E"), Color.parseColor("#A36243"), Color.parseColor("#FFFCFA"), Color.parseColor("#F9F0EA"), Color.parseColor("#E6CBBE"), Color.parseColor("#4B342C"), Color.parseColor("#866559"), Color.parseColor("#F0C3AB"), Color.parseColor("#F8E0D3")),
-        ThemePalette("lavender", "Lavanda Noturna", Color.parseColor("#A78FF5"), Color.parseColor("#6F55CA"), Color.parseColor("#FDFCFF"), Color.parseColor("#F3EEFF"), Color.parseColor("#DDD3F7"), Color.parseColor("#41345E"), Color.parseColor("#766A95"), Color.parseColor("#D7CFFF"), Color.parseColor("#ECE5FF")),
-        ThemePalette("ocean", "Mar de Vidro", Color.parseColor("#66B8F6"), Color.parseColor("#2A7BC8"), Color.parseColor("#FBFDFF"), Color.parseColor("#EBF6FF"), Color.parseColor("#CDE1F2"), Color.parseColor("#1F486F"), Color.parseColor("#5D7FA0"), Color.parseColor("#CBE7FF"), Color.parseColor("#E4F3FF"))
+        ThemePalette("blossom", "Algodão Doce", Color.parseColor("#F58FA9"), Color.parseColor("#D64F7A"), Color.parseColor("#FFFDFE"), Color.parseColor("#FFF1F6"), Color.parseColor("#F3D2DE"), Color.parseColor("#573241"), Color.parseColor("#8F6776"), Color.parseColor("#FFD6E3"), Color.parseColor("#FFE9F1")),
+        ThemePalette("mint", "Jardim de Hortelã", Color.parseColor("#5DCAA7"), Color.parseColor("#1F8A66"), Color.parseColor("#FAFFFC"), Color.parseColor("#ECFBF4"), Color.parseColor("#CDEBDD"), Color.parseColor("#214236"), Color.parseColor("#5B8072"), Color.parseColor("#C6F3E3"), Color.parseColor("#E4FBF2")),
+        ThemePalette("butter", "Creme Solar", Color.parseColor("#F1BE57"), Color.parseColor("#BE7A14"), Color.parseColor("#FFFDF7"), Color.parseColor("#FFF7DA"), Color.parseColor("#EEDDAA"), Color.parseColor("#5D4512"), Color.parseColor("#8F7840"), Color.parseColor("#FFE39D"), Color.parseColor("#FFF2C9")),
+        ThemePalette("cocoa", "Café com Leite", Color.parseColor("#C88F6C"), Color.parseColor("#8C5337"), Color.parseColor("#FFFDFC"), Color.parseColor("#F8EFEA"), Color.parseColor("#E7C7B9"), Color.parseColor("#442F29"), Color.parseColor("#7B6259"), Color.parseColor("#F0C2A8"), Color.parseColor("#F9E2D7")),
+        ThemePalette("lavender", "Lavanda Noturna", Color.parseColor("#9E84F8"), Color.parseColor("#5840B0"), Color.parseColor("#FDFBFF"), Color.parseColor("#F2EEFF"), Color.parseColor("#D8CEF6"), Color.parseColor("#3C315B"), Color.parseColor("#72668E"), Color.parseColor("#DACEFF"), Color.parseColor("#EEE8FF")),
+        ThemePalette("ocean", "Mar de Vidro", Color.parseColor("#5CAFE9"), Color.parseColor("#175E9B"), Color.parseColor("#FBFDFF"), Color.parseColor("#EAF5FF"), Color.parseColor("#C6DCEE"), Color.parseColor("#1D4263"), Color.parseColor("#5E7D98"), Color.parseColor("#CAE8FF"), Color.parseColor("#E6F4FF"))
     )
 
     fun all(): List<ThemePalette> = palettes
-
     fun current(context: Context): ThemePalette {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val id = prefs.getString(PREF_THEME, palettes.first().id)
+        val id = prefs(context).getString(PREF_THEME, palettes.first().id)
         return palettes.firstOrNull { it.id == id } ?: palettes.first()
     }
 
-    fun save(context: Context, themeId: String) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(PREF_THEME, themeId)
-            .apply()
-    }
+    fun save(context: Context, themeId: String) { prefs(context).edit().putString(PREF_THEME, themeId).apply() }
+    fun avatarPath(context: Context): String? = prefs(context).getString(PREF_AVATAR_PATH, null)
+    fun saveAvatarPath(context: Context, path: String) { prefs(context).edit().putString(PREF_AVATAR_PATH, path).apply() }
+    fun clearAvatar(context: Context) { prefs(context).edit().remove(PREF_AVATAR_PATH).apply() }
+    fun animationsEnabled(context: Context): Boolean = prefs(context).getBoolean(PREF_ANIMATIONS, true)
+    fun saveAnimationsEnabled(context: Context, enabled: Boolean) { prefs(context).edit().putBoolean(PREF_ANIMATIONS, enabled).apply() }
+    fun autoRefreshEnabled(context: Context): Boolean = prefs(context).getBoolean(PREF_AUTO_REFRESH, true)
+    fun saveAutoRefreshEnabled(context: Context, enabled: Boolean) { prefs(context).edit().putBoolean(PREF_AUTO_REFRESH, enabled).apply() }
+    fun relativeTimeEnabled(context: Context): Boolean = prefs(context).getBoolean(PREF_RELATIVE_TIME, true)
+    fun saveRelativeTimeEnabled(context: Context, enabled: Boolean) { prefs(context).edit().putBoolean(PREF_RELATIVE_TIME, enabled).apply() }
+    fun textScale(context: Context): Float = when (prefs(context).getString(PREF_TEXT_SCALE, "standard")) { "large" -> 1.12f else -> 1f }
+    fun textScaleId(context: Context): String = prefs(context).getString(PREF_TEXT_SCALE, "standard") ?: "standard"
+    fun saveTextScale(context: Context, value: String) { prefs(context).edit().putString(PREF_TEXT_SCALE, value).apply() }
+    fun animationIntensity(context: Context): Float = when (prefs(context).getString(PREF_ANIMATION_INTENSITY, "normal")) { "soft" -> 0.75f; "vivid" -> 1.25f; else -> 1f }
+    fun animationIntensityId(context: Context): String = prefs(context).getString(PREF_ANIMATION_INTENSITY, "normal") ?: "normal"
+    fun saveAnimationIntensity(context: Context, value: String) { prefs(context).edit().putString(PREF_ANIMATION_INTENSITY, value).apply() }
+    fun showGasCard(context: Context): Boolean = prefs(context).getBoolean(PREF_SHOW_GAS, true)
+    fun saveShowGasCard(context: Context, enabled: Boolean) { prefs(context).edit().putBoolean(PREF_SHOW_GAS, enabled).apply() }
+    fun showSyncCard(context: Context): Boolean = prefs(context).getBoolean(PREF_SHOW_SYNC, true)
+    fun saveShowSyncCard(context: Context, enabled: Boolean) { prefs(context).edit().putBoolean(PREF_SHOW_SYNC, enabled).apply() }
+    fun startTab(context: Context): String = prefs(context).getString(PREF_START_TAB, "home") ?: "home"
+    fun saveStartTab(context: Context, tabId: String) { prefs(context).edit().putString(PREF_START_TAB, tabId).apply() }
+
+    private fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 }

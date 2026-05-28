@@ -82,17 +82,22 @@
                     android:orientation="vertical">
 
                     <FrameLayout
-                        android:layout_width="76dp"
-                        android:layout_height="76dp"
+                        android:layout_width="82dp"
+                        android:layout_height="82dp"
                         android:background="@drawable/avatar_bubble"
-                        android:padding="12dp">
+                        android:padding="4dp">
 
-                        <ImageView
+                        <com.google.android.material.imageview.ShapeableImageView
+                            android:id="@+id/headerAvatar"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:layout_gravity="center"
+                            android:scaleType="centerInside"
                             android:src="@drawable/ic_paw"
-                            android:tint="@color/theme_primary_dark" />
+                            android:tint="@color/theme_primary_dark"
+                            app:shapeAppearanceOverlay="@style/PetAvatarShape"
+                            app:strokeColor="@color/theme_border"
+                            app:strokeWidth="1dp" />
                     </FrameLayout>
 
                     <LinearLayout
@@ -137,12 +142,12 @@
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/bottomBar"
             android:layout_width="match_parent"
-            android:layout_height="84dp"
+            android:layout_height="86dp"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="14dp"
             app:cardBackgroundColor="@color/theme_surface"
-            app:cardCornerRadius="28dp"
+            app:cardCornerRadius="30dp"
             app:strokeColor="@color/theme_border"
             app:strokeWidth="1dp">
 

@@ -28,11 +28,13 @@ data class HistoryEntry(
     val foodLevelPercent: Int?,
     val waterLevelPercent: Int?,
     val motionDetected: Boolean,
+    val feedMotorOn: Boolean,
     val alertText: String
 )
 
 data class DashboardPayload(
     val device: DeviceInfo,
     val snapshot: Snapshot,
-    val history: List<HistoryEntry>
+    val history: List<HistoryEntry>,
+    val isCached: Boolean = false
 )

@@ -7,4 +7,9 @@
         <item name="colorPrimary">@color/theme_primary</item>
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
+
+    <style name="PetAvatarShape">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">999dp</item>
+    </style>
 </resources>

@@ -1,6 +1,7 @@
 package com.lauro.petguardian
 
 import android.content.res.ColorStateList
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -8,6 +9,8 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.imageview.ShapeableImageView
 import com.lauro.petguardian.data.DashboardPayload
 import com.lauro.petguardian.databinding.ActivityMainBinding
 import com.lauro.petguardian.ui.ControlsFragment
@@ -15,6 +18,7 @@ import com.lauro.petguardian.ui.HistoryFragment
 import com.lauro.petguardian.ui.HomeFragment
 import com.lauro.petguardian.ui.PhotoFragment
 import com.lauro.petguardian.ui.SettingsFragment
+import java.io.File
 
 class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
     private lateinit var binding: ActivityMainBinding
@@ -37,14 +41,42 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
     private val bottomBar by lazy { findViewById<MaterialCardView>(R.id.bottomBar) }
     private val headerCard by lazy { findViewById<MaterialCardView>(R.id.headerCard) }
     private val photoBubble by lazy { findViewById<MaterialCardView>(R.id.photoBubble) }
+    private val headerAvatar by lazy { findViewById<ShapeableImageView>(R.id.headerAvatar) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        NotificationHelper.ensureChannel(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setupNavigation()
         applyThemePalette(ThemeManager.current(this))
-        if (savedInstanceState == null) openTab(MainTab.HOME)
+        applyTextScale()
+        refreshAvatar()
+        updateHeaderLabels(null)
+        if (savedInstanceState == null) {
+            openTab(defaultTab())
+        }
+        showOnboardingIfNeeded()
+    }
+
+    private fun showOnboardingIfNeeded() {
+        if (ProfileManager.onboardingSeen(this)) return
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Bem-vindo ao Meu Pet")
+            .setMessage("O app conversa com o hub do pet, mostra ambiente, histórico, comandos remotos e já está preparado para câmera e automações mais avançadas.")
+            .setPositiveButton("Entendi") { dialog, _ ->
+                ProfileManager.saveOnboardingSeen(this)
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun defaultTab(): MainTab = when (ThemeManager.startTab(this)) {
+        "history" -> MainTab.HISTORY
+        "photo" -> MainTab.PHOTO
+        "controls" -> MainTab.CONTROLS
+        "settings" -> MainTab.SETTINGS
+        else -> MainTab.HOME
     }
 
     private fun setupNavigation() {
@@ -62,14 +94,67 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
     }
 
     fun updateSnapshot(payload: DashboardPayload?) {
-        binding.petName.text = payload?.device?.name ?: getString(R.string.pet_name_default)
-        binding.petMeta.text = payload?.device?.hardwareType ?: getString(R.string.pet_meta_default)
+        updateHeaderLabels(payload)
+    }
+
+    private fun updateHeaderLabels(payload: DashboardPayload?) {
+        val petName = ProfileManager.petName(this) ?: payload?.device?.name ?: getString(R.string.pet_name_default)
+        val homeName = ProfileManager.homeName(this) ?: getString(R.string.pet_meta_default)
+        binding.petName.text = petName
+        binding.petMeta.text = homeName
+        if (payload?.isCached == true) {
+            updateStatus(getString(R.string.status_offline), false)
+        }
     }
 
     override fun onThemeSelected(themeId: String) {
         ThemeManager.save(this, themeId)
         applyThemePalette(ThemeManager.current(this))
-        supportFragmentManager.fragments.forEach { fragment -> if (fragment is SettingsFragment) fragment.refreshThemeState() }
+        supportFragmentManager.fragments.forEach { fragment ->
+            if (fragment is SettingsFragment) fragment.refreshThemeState()
+        }
+    }
+
+    override fun onAvatarChanged() {
+        refreshAvatar()
+    }
+
+    override fun onAppearanceChanged() {
+        applyThemePalette(ThemeManager.current(this))
+        applyTextScale()
+        refreshAvatar()
+        updateHeaderLabels(null)
+        openTab(currentTab)
+    }
+
+    private fun refreshAvatar() {
+        val avatarPath = ThemeManager.avatarPath(this)
+        val avatarFile = avatarPath?.let { File(it) }
+        if (avatarFile == null || !avatarFile.exists()) {
+            headerAvatar.setImageResource(R.drawable.ic_paw)
+            headerAvatar.imageTintList = ColorStateList.valueOf(getColor(R.color.theme_primary_dark))
+            headerAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE
+        } else {
+            runCatching {
+                val bitmap = BitmapFactory.decodeFile(avatarFile.absolutePath)
+                headerAvatar.setImageBitmap(bitmap)
+                headerAvatar.imageTintList = null
+                headerAvatar.scaleType = ImageView.ScaleType.CENTER_CROP
+            }.onFailure {
+                headerAvatar.setImageResource(R.drawable.ic_paw)
+                headerAvatar.imageTintList = ColorStateList.valueOf(getColor(R.color.theme_primary_dark))
+                headerAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE
+            }
+        }
+    }
+
+    private fun applyTextScale() {
+        val scale = ThemeManager.textScale(this)
+        binding.screenTitle.textSize = 22f * scale
+        binding.screenSubtitle.textSize = 13f * scale
+        binding.petName.textSize = 18f * scale
+        binding.petMeta.textSize = 12f * scale
+        binding.statusText.textSize = 12f * scale
     }
 
     private fun applyThemePalette(palette: ThemePalette) {
@@ -95,10 +180,14 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
             MainTab.CONTROLS -> ControlsFragment()
             MainTab.SETTINGS -> SettingsFragment()
         }
-        supportFragmentManager.beginTransaction().replace(R.id.fragmentContainer, fragment).commit()
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+            .replace(R.id.fragmentContainer, fragment)
+            .commit()
         binding.screenTitle.text = getString(tab.titleRes)
         binding.screenSubtitle.text = getString(tab.subtitleRes)
         highlightTab(tab, ThemeManager.current(this))
+        applyTextScale()
     }
 
     private fun highlightTab(tab: MainTab, palette: ThemePalette) {
@@ -108,16 +197,18 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
         decorateNav(navControlsIcon, navControlsLabel, tab == MainTab.CONTROLS, palette)
         decorateNav(navSettingsIcon, navSettingsLabel, tab == MainTab.SETTINGS, palette)
         photoBubble.alpha = if (tab == MainTab.PHOTO) 1f else 0.96f
-        photoBubble.scaleX = if (tab == MainTab.PHOTO) 1.04f else 1f
-        photoBubble.scaleY = if (tab == MainTab.PHOTO) 1.04f else 1f
+        photoBubble.scaleX = if (tab == MainTab.PHOTO) 1.03f else 1f
+        photoBubble.scaleY = if (tab == MainTab.PHOTO) 1.03f else 1f
     }
 
     private fun decorateNav(icon: ImageView, label: TextView, active: Boolean, palette: ThemePalette, center: Boolean = false) {
         val color = if (active) palette.primaryDark else palette.softText
         icon.imageTintList = ColorStateList.valueOf(color)
         label.setTextColor(color)
-        icon.alpha = if (active) 1f else 0.76f
-        label.alpha = if (active) 1f else if (center) 0.88f else 0.8f
+        icon.alpha = if (active) 1f else 0.74f
+        label.alpha = if (active) 1f else if (center) 0.9f else 0.82f
+        icon.scaleX = if (active) 1.08f else 1f
+        icon.scaleY = if (active) 1.08f else 1f
     }
 }
 

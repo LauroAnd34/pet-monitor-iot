@@ -1,2 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/themeButter" android:layout_width="0dp" android:layout_height="170dp" android:layout_weight="1" android:layout_marginEnd="6dp" app:cardBackgroundColor="@color/theme_surface" app:cardCornerRadius="24dp" app:strokeColor="@color/theme_border" app:strokeWidth="1dp"><LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="14dp"><LinearLayout android:layout_width="match_parent" android:layout_height="58dp" android:orientation="horizontal"><View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#FFF9DE" /><View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#F5DC8E" /><View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#E8B84B" /></LinearLayout><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/theme_butter" android:textColor="@color/theme_primary_text" android:textSize="15sp" android:textStyle="bold" /><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Dourado amanteigado, brilhante e aconchegante." android:textColor="@color/theme_secondary_text" android:textSize="12sp" /></LinearLayout></com.google.android.material.card.MaterialCardView>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/themeButter"
+    android:layout_width="0dp"
+    android:layout_height="136dp"
+    android:layout_weight="1"
+    android:layout_marginEnd="6dp"
+    app:cardBackgroundColor="@color/theme_surface"
+    app:cardCornerRadius="24dp"
+    app:strokeColor="@color/theme_border"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:orientation="horizontal">
+            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#FFF9DE" />
+            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#F5DC8E" />
+            <View android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="#E8B84B" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/theme_butter"
+            android:textColor="@color/theme_primary_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

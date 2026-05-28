@@ -2,14 +2,14 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
+    android:layout_height="match_parent"
+    android:fillViewport="true">
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
-
+        android:padding="16dp"
+        android:paddingBottom="156dp">
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -17,116 +17,33 @@
             app:cardCornerRadius="28dp"
             app:strokeColor="@color/theme_border"
             app:strokeWidth="1dp">
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="20dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/control_title"
-                    android:textColor="@color/theme_primary_text"
-                    android:textSize="22sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/control_description"
-                    android:textColor="@color/theme_secondary_text"
-                    android:textSize="14sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/control_title" android:textColor="@color/theme_primary_text" android:textSize="22sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/control_description" android:textColor="@color/theme_secondary_text" android:textSize="14sp" />
+                <LinearLayout android:id="@+id/feedbackPanel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:background="@drawable/header_gradient" android:orientation="vertical" android:padding="14dp" android:visibility="gone">
+                    <TextView android:id="@+id/feedbackBadge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/metric_badge_blue" android:paddingStart="10dp" android:paddingTop="5dp" android:paddingEnd="10dp" android:paddingBottom="5dp" android:textColor="@color/theme_primary_text" android:textSize="11sp" android:textStyle="bold" />
+                    <TextView android:id="@+id/feedbackText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:textColor="@color/theme_primary_text" android:textSize="17sp" android:textStyle="bold" />
+                    <TextView android:id="@+id/feedbackBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textColor="@color/theme_secondary_text" android:textSize="13sp" />
+                </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal">
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
-                android:layout_height="188dp"
-                android:layout_marginEnd="6dp"
-                android:layout_weight="1"
-                app:cardBackgroundColor="@color/theme_surface"
-                app:cardCornerRadius="24dp"
-                app:strokeColor="@color/theme_border"
-                app:strokeWidth="1dp">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ração" android:textColor="@color/theme_primary_text" android:textSize="18sp" android:textStyle="bold" />
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Aciona o mecanismo do comedouro para liberar uma porção agora." android:textColor="@color/theme_secondary_text" android:textSize="13sp" />
-                    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
-                    <com.google.android.material.button.MaterialButton android:id="@+id/feedButton" style="@style/Widget.Material3.Button.TonalButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/feed_now" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
-                android:layout_height="188dp"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                app:cardBackgroundColor="@color/theme_surface"
-                app:cardCornerRadius="24dp"
-                app:strokeColor="@color/theme_border"
-                app:strokeWidth="1dp">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Água" android:textColor="@color/theme_primary_text" android:textSize="18sp" android:textStyle="bold" />
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Liga a bomba por um ciclo curto para renovar a água do protótipo." android:textColor="@color/theme_secondary_text" android:textSize="13sp" />
-                    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
-                    <com.google.android.material.button.MaterialButton android:id="@+id/waterButton" style="@style/Widget.Material3.Button.TonalButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/refill_water" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="horizontal">
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
-                android:layout_height="176dp"
-                android:layout_marginEnd="6dp"
-                android:layout_weight="1"
-                app:cardBackgroundColor="@color/theme_surface"
-                app:cardCornerRadius="24dp"
-                app:strokeColor="@color/theme_border"
-                app:strokeWidth="1dp">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Luz manual" android:textColor="@color/theme_primary_text" android:textSize="18sp" android:textStyle="bold" />
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Assuma o comando da iluminação do ambiente quando quiser." android:textColor="@color/theme_secondary_text" android:textSize="13sp" />
-                    <Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
-                    <com.google.android.material.button.MaterialButton android:id="@+id/lampOnButton" style="@style/Widget.Material3.Button" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/turn_lamp_on" />
-                    <com.google.android.material.button.MaterialButton android:id="@+id/lampOffButton" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/turn_lamp_off" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-                <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="82dp" app:cardBackgroundColor="@color/theme_surface" app:cardCornerRadius="24dp" app:strokeColor="@color/theme_border" app:strokeWidth="1dp"><com.google.android.material.button.MaterialButton android:id="@+id/lampAutoButton" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="match_parent" android:text="@string/lamp_auto" /></com.google.android.material.card.MaterialCardView>
-                <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="82dp" android:layout_marginTop="12dp" app:cardBackgroundColor="@color/theme_surface" app:cardCornerRadius="24dp" app:strokeColor="@color/theme_border" app:strokeWidth="1dp"><com.google.android.material.button.MaterialButton android:id="@+id/pumpAutoButton" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="match_parent" android:text="@string/pump_auto" /></com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" app:cardBackgroundColor="@color/theme_surface" app:cardCornerRadius="24dp" app:strokeColor="@color/theme_border" app:strokeWidth="1dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/control_open_automation" android:textColor="@color/theme_primary_text" android:textSize="18sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="@string/control_open_automation_hint" android:textColor="@color/theme_secondary_text" android:textSize="13sp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/openAutomationButton" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="14dp" android:text="@string/control_open_automation" />
             </LinearLayout>
-        </LinearLayout>
-
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="@color/theme_surface"
-            app:cardCornerRadius="22dp"
-            app:strokeColor="@color/theme_border"
-            app:strokeWidth="1dp">
-            <TextView android:id="@+id/feedbackText" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp" android:text="@string/control_ready" android:textColor="@color/theme_secondary_text" android:textSize="14sp" />
         </com.google.android.material.card.MaterialCardView>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/control_quick_hint" android:textColor="@color/theme_secondary_text" android:textSize="12sp" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+            <com.google.android.material.card.MaterialCardView android:layout_width="0dp" android:layout_height="196dp" android:layout_marginEnd="6dp" android:layout_weight="1" app:cardBackgroundColor="@color/theme_surface" app:cardCornerRadius="24dp" app:strokeColor="@color/theme_border" app:strokeWidth="1dp"><LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/feed_card_title" android:textColor="@color/theme_primary_text" android:textSize="18sp" android:textStyle="bold" /><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/feed_card_body" android:textColor="@color/theme_secondary_text" android:textSize="13sp" /><Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" /><com.google.android.material.button.MaterialButton android:id="@+id/feedButton" style="@style/Widget.Material3.Button" android:layout_width="match_parent" android:layout_height="52dp" android:insetTop="0dp" android:insetBottom="0dp" android:text="@string/feed_now" /></LinearLayout></com.google.android.material.card.MaterialCardView>
+            <com.google.android.material.card.MaterialCardView android:layout_width="0dp" android:layout_height="196dp" android:layout_marginStart="6dp" android:layout_weight="1" app:cardBackgroundColor="@color/theme_surface" app:cardCornerRadius="24dp" app:strokeColor="@color/theme_border" app:strokeWidth="1dp"><LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/water_card_title" android:textColor="@color/theme_primary_text" android:textSize="18sp" android:textStyle="bold" /><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/water_card_body" android:textColor="@color/theme_secondary_text" android:textSize="13sp" /><Space android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" /><com.google.android.material.button.MaterialButton android:id="@+id/waterButton" style="@style/Widget.Material3.Button" android:layout_width="match_parent" android:layout_height="52dp" android:insetTop="0dp" android:insetBottom="0dp" android:text="@string/refill_water" /></LinearLayout></com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" app:cardBackgroundColor="@color/theme_surface" app:cardCornerRadius="24dp" app:strokeColor="@color/theme_border" app:strokeWidth="1dp"><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/lamp_card_title" android:textColor="@color/theme_primary_text" android:textSize="18sp" android:textStyle="bold" /><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="@string/lamp_card_body" android:textColor="@color/theme_secondary_text" android:textSize="13sp" /><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:orientation="horizontal"><com.google.android.material.button.MaterialButton android:id="@+id/lampOnButton" style="@style/Widget.Material3.Button" android:layout_width="0dp" android:layout_height="52dp" android:layout_marginEnd="6dp" android:layout_weight="1" android:insetTop="0dp" android:insetBottom="0dp" android:text="@string/turn_lamp_on" /><com.google.android.material.button.MaterialButton android:id="@+id/lampOffButton" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="52dp" android:layout_marginStart="6dp" android:layout_weight="1" android:insetTop="0dp" android:insetBottom="0dp" android:text="@string/turn_lamp_off" /></LinearLayout></LinearLayout></com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:layout_marginBottom="18dp" app:cardBackgroundColor="@color/theme_surface" app:cardCornerRadius="24dp" app:strokeColor="@color/theme_border" app:strokeWidth="1dp"><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp"><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/control_auto_title" android:textColor="@color/theme_primary_text" android:textSize="18sp" android:textStyle="bold" /><TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="@string/control_auto_description" android:textColor="@color/theme_secondary_text" android:textSize="13sp" /><LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:orientation="vertical"><com.google.android.material.button.MaterialButton android:id="@+id/lampAutoButton" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="52dp" android:insetTop="0dp" android:insetBottom="0dp" android:text="@string/lamp_auto" /><com.google.android.material.button.MaterialButton android:id="@+id/pumpAutoButton" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="10dp" android:insetTop="0dp" android:insetBottom="0dp" android:text="@string/pump_auto" /></LinearLayout></LinearLayout></com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 </ScrollView>

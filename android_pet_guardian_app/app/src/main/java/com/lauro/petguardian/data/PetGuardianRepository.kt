@@ -1,6 +1,7 @@
 package com.lauro.petguardian.data
 
 import com.lauro.petguardian.AppConfig
+import com.lauro.petguardian.PetGuardianApp
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -11,6 +12,9 @@ import java.net.URL
 import kotlin.concurrent.thread
 
 object PetGuardianRepository {
+    private const val CACHE_PREFS = "pet_guardian_cache"
+    private const val CACHE_DASHBOARD = "dashboard_json"
+
     fun fetchDashboard(limit: Int = 20, callback: (Result<DashboardPayload>) -> Unit) {
         thread {
             runCatching {
@@ -21,11 +25,17 @@ object PetGuardianRepository {
                 if (connection.responseCode !in 200..299) {
                     error(payload.ifBlank { "Falha ao buscar os dados do pet." })
                 }
-                parseDashboard(JSONObject(payload))
+                cacheDashboard(payload)
+                parseDashboard(JSONObject(payload), isCached = false)
             }.onSuccess {
                 callback(Result.success(it))
-            }.onFailure {
-                callback(Result.failure(it))
+            }.onFailure { error ->
+                val cached = cachedDashboard()
+                if (cached != null) {
+                    callback(Result.success(cached))
+                } else {
+                    callback(Result.failure(error))
+                }
             }
         }
     }
@@ -42,7 +52,7 @@ object PetGuardianRepository {
                 }
                 val payload = readResponse(connection)
                 if (connection.responseCode !in 200..299) {
-                    error(payload.ifBlank { "NÃ£o foi possÃ­vel enviar o comando." })
+                    error(payload.ifBlank { "Não foi possível enviar o comando." })
                 }
                 JSONObject(payload).optString("message").ifBlank { "Comando enviado com sucesso." }
             }.onSuccess {
@@ -53,7 +63,7 @@ object PetGuardianRepository {
         }
     }
 
-    private fun parseDashboard(root: JSONObject): DashboardPayload {
+    private fun parseDashboard(root: JSONObject, isCached: Boolean): DashboardPayload {
         val deviceJson = root.optJSONObject("device") ?: JSONObject()
         val snapshotJson = root.optJSONObject("snapshot") ?: JSONObject()
         val historyJson = root.optJSONArray("history") ?: JSONArray()
@@ -90,13 +100,30 @@ object PetGuardianRepository {
                         foodLevelPercent = item.optIntOrNull("food_level_percent"),
                         waterLevelPercent = item.optIntOrNull("water_level_percent"),
                         motionDetected = item.optBoolean("motion_detected", false),
+                        feedMotorOn = item.optBoolean("feed_motor_on", false),
                         alertText = item.optString("alert_text", "")
                     )
                 )
             }
         }
 
-        return DashboardPayload(device, snapshot, history)
+        return DashboardPayload(device, snapshot, history, isCached = isCached)
+    }
+
+    private fun cacheDashboard(raw: String) {
+        PetGuardianApp.appContext
+            .getSharedPreferences(CACHE_PREFS, android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putString(CACHE_DASHBOARD, raw)
+            .apply()
+    }
+
+    private fun cachedDashboard(): DashboardPayload? {
+        val raw = PetGuardianApp.appContext
+            .getSharedPreferences(CACHE_PREFS, android.content.Context.MODE_PRIVATE)
+            .getString(CACHE_DASHBOARD, null)
+            .orEmpty()
+        return if (raw.isBlank()) null else runCatching { parseDashboard(JSONObject(raw), isCached = true) }.getOrNull()
     }
 
     private fun openConnection(rawUrl: String, method: String): HttpURLConnection {
@@ -113,12 +140,8 @@ object PetGuardianRepository {
         return stream?.use { input -> input.toText() }.orEmpty()
     }
 
-    private fun InputStream.toText(): String =
-        BufferedReader(InputStreamReader(this)).use { it.readText() }
+    private fun InputStream.toText(): String = BufferedReader(InputStreamReader(this)).use { it.readText() }
 
-    private fun JSONObject.optDoubleOrNull(key: String): Double? =
-        if (isNull(key)) null else optDouble(key)
-
-    private fun JSONObject.optIntOrNull(key: String): Int? =
-        if (isNull(key)) null else optInt(key)
+    private fun JSONObject.optDoubleOrNull(key: String): Double? = if (isNull(key)) null else optDouble(key)
+    private fun JSONObject.optIntOrNull(key: String): Int? = if (isNull(key)) null else optInt(key)
 }

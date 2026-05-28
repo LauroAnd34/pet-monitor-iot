@@ -2,14 +2,15 @@ package com.lauro.petguardian.ui
 
 import com.lauro.petguardian.R
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 object UiFormatters {
-    fun percent(value: Int?): String = value?.let { "${it}%" } ?: "--"
+    fun percent(value: Int?): String = value?.let { "$it%" } ?: "--"
 
     fun temperature(value: Double?): String =
-        value?.let { String.format(Locale("pt", "BR"), "%.1f \u00B0C", it) } ?: "--"
+        value?.let { String.format(Locale("pt", "BR"), "%.1f ∞C", it) } ?: "--"
 
     fun humidity(value: Double?): String =
         value?.let { String.format(Locale("pt", "BR"), "%.0f%%", it) } ?: "--"
@@ -29,30 +30,43 @@ object UiFormatters {
     }
 
     fun isRecent(value: String, maxSeconds: Long = 90): Boolean {
-        val parsed = parseDate(value) ?: return false
+        val parsed = parseDateOrNull(value) ?: return false
         val diff = (System.currentTimeMillis() - parsed.time) / 1000
         return diff in 0..maxSeconds
     }
 
     fun date(value: String): String {
-        val parsed = parseDate(value) ?: return value.ifBlank {
-            SimpleDateFormat("dd/MM \u2022 HH:mm", Locale("pt", "BR")).format(Date())
+        val parsed = parseDateOrNull(value) ?: return value.ifBlank {
+            SimpleDateFormat("dd/MM ï HH:mm", Locale("pt", "BR")).format(Date())
         }
-        return SimpleDateFormat("dd/MM \u2022 HH:mm", Locale("pt", "BR")).format(parsed)
+        return SimpleDateFormat("dd/MM ï HH:mm", Locale("pt", "BR")).format(parsed)
+    }
+
+    fun dayHeader(value: String): String {
+        val parsed = parseDateOrNull(value) ?: return "Sem data"
+        val calendar = Calendar.getInstance().apply { time = parsed }
+        val now = Calendar.getInstance()
+        val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+        return when {
+            sameDay(calendar, now) -> "Hoje"
+            sameDay(calendar, yesterday) -> "Ontem"
+            else -> SimpleDateFormat("EEEE, dd 'de' MMMM", Locale("pt", "BR")).format(parsed)
+                .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("pt", "BR")) else it.toString() }
+        }
     }
 
     fun relativeTime(value: String): String {
-        val parsed = parseDate(value) ?: return "Hor√°rio indispon√≠vel"
+        val parsed = parseDateOrNull(value) ?: return "Hor·rio indisponÌvel"
         val diffSeconds = ((System.currentTimeMillis() - parsed.time) / 1000).coerceAtLeast(0)
         return when {
-            diffSeconds < 60 -> "Agora h√° pouco"
-            diffSeconds < 3600 -> "H√° ${diffSeconds / 60} min"
-            diffSeconds < 86400 -> "H√° ${diffSeconds / 3600} h"
-            else -> "H√° ${diffSeconds / 86400} d"
+            diffSeconds < 60 -> "Agora h· pouco"
+            diffSeconds < 3600 -> "H· ${diffSeconds / 60} min"
+            diffSeconds < 86400 -> "H· ${diffSeconds / 3600} h"
+            else -> "H· ${diffSeconds / 86400} d"
         }
     }
 
-    private fun parseDate(value: String): Date? {
+    fun parseDateOrNull(value: String): Date? {
         val formats = listOf(
             "yyyy-MM-dd'T'HH:mm:ss.SSSX",
             "yyyy-MM-dd'T'HH:mm:ssX"
@@ -62,5 +76,29 @@ object UiFormatters {
             if (parsed != null) return parsed
         }
         return null
+    }
+
+    fun isToday(value: String): Boolean {
+        val parsed = parseDateOrNull(value) ?: return false
+        val now = Calendar.getInstance()
+        val target = Calendar.getInstance().apply { time = parsed }
+        return sameDay(now, target)
+    }
+
+    fun isWithinLastDays(value: String, days: Int): Boolean {
+        val parsed = parseDateOrNull(value) ?: return false
+        val cutoff = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -days) }.timeInMillis
+        return parsed.time >= cutoff
+    }
+
+    fun isSameDay(first: String, second: String): Boolean {
+        val one = parseDateOrNull(first) ?: return false
+        val two = parseDateOrNull(second) ?: return false
+        return sameDay(Calendar.getInstance().apply { time = one }, Calendar.getInstance().apply { time = two })
+    }
+
+    private fun sameDay(first: Calendar, second: Calendar): Boolean {
+        return first.get(Calendar.YEAR) == second.get(Calendar.YEAR) &&
+            first.get(Calendar.DAY_OF_YEAR) == second.get(Calendar.DAY_OF_YEAR)
     }
 }

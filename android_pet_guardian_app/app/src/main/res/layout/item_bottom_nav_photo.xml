@@ -12,17 +12,17 @@
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/photoBubble"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         app:cardBackgroundColor="@color/theme_primary"
-        app:cardCornerRadius="26dp"
+        app:cardCornerRadius="24dp"
         app:strokeColor="@color/theme_border"
         app:strokeWidth="1dp">
 
         <ImageView
             android:id="@+id/navPhotoIcon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_paw"
             android:tint="@color/theme_primary_text" />

@@ -15,6 +15,21 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <TextView
+            android:id="@+id/dayHeaderText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/metric_badge_yellow"
+            android:paddingStart="12dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="6dp"
+            android:textColor="@color/theme_primary_text"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -46,19 +61,43 @@
 
         <TextView
             android:id="@+id/alertText"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:textColor="@color/theme_secondary_text"
-            android:textSize="13sp" />
+            android:background="@drawable/metric_badge_green"
+            android:paddingStart="10dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="6dp"
+            android:textColor="@color/theme_primary_text"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:orientation="horizontal">
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginEnd="6dp" android:layout_weight="1" android:orientation="vertical"><TextView android:id="@+id/temperatureLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/theme_secondary_text" android:textSize="11sp" android:textStyle="bold" /><TextView android:id="@+id/temperatureText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/theme_primary_text" android:textSize="16sp" android:textStyle="bold" /></LinearLayout>
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:layout_weight="1" android:orientation="vertical"><TextView android:id="@+id/humidityLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/theme_secondary_text" android:textSize="11sp" android:textStyle="bold" /><TextView android:id="@+id/humidityText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/theme_primary_text" android:textSize="16sp" android:textStyle="bold" /></LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView android:id="@+id/temperatureLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/theme_secondary_text" android:textSize="11sp" android:textStyle="bold" />
+                <TextView android:id="@+id/temperatureText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/theme_primary_text" android:textSize="16sp" android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView android:id="@+id/humidityLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/theme_secondary_text" android:textSize="11sp" android:textStyle="bold" />
+                <TextView android:id="@+id/humidityText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/theme_primary_text" android:textSize="16sp" android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
