@@ -87,17 +87,16 @@
                         android:background="@drawable/avatar_bubble"
                         android:padding="4dp">
 
-                        <com.google.android.material.imageview.ShapeableImageView
+                        <androidx.appcompat.widget.AppCompatImageView
                             android:id="@+id/headerAvatar"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:layout_gravity="center"
+                            android:background="@drawable/avatar_clip"
+                            android:clipToOutline="true"
                             android:scaleType="centerInside"
                             android:src="@drawable/ic_paw"
-                            android:tint="@color/theme_primary_dark"
-                            app:shapeAppearanceOverlay="@style/PetAvatarShape"
-                            app:strokeColor="@color/theme_border"
-                            app:strokeWidth="1dp" />
+                            android:tint="@color/theme_primary_dark" />
                     </FrameLayout>
 
                     <LinearLayout

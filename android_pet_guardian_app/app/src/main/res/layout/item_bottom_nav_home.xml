@@ -21,7 +21,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:text="@string/tab_home"
+        android:text="In&#237;cio"
         android:textColor="@color/bottom_nav_inactive"
         android:textSize="11sp"
         android:textStyle="bold" />

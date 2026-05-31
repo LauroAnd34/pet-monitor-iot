@@ -1,4 +1,4 @@
-﻿package com.lauro.petguardian.ui
+package com.lauro.petguardian.ui
 
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
@@ -22,6 +22,10 @@ import com.lauro.petguardian.data.PetGuardianRepository
 import com.lauro.petguardian.databinding.FragmentHomeBinding
 
 class HomeFragment : Fragment() {
+    companion object {
+        private const val REFRESH_INTERVAL_MS = 10000L
+    }
+
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
 
@@ -29,7 +33,7 @@ class HomeFragment : Fragment() {
         override fun run() {
             if (_binding != null && isAdded && ThemeManager.autoRefreshEnabled(requireContext())) {
                 loadData(false)
-                binding.root.postDelayed(this, 30000)
+                binding.root.postDelayed(this, REFRESH_INTERVAL_MS)
             }
         }
     }
@@ -49,8 +53,9 @@ class HomeFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         binding.root.removeCallbacks(autoRefreshRunnable)
+        loadData(false)
         if (ThemeManager.autoRefreshEnabled(requireContext())) {
-            binding.root.postDelayed(autoRefreshRunnable, 30000)
+            binding.root.postDelayed(autoRefreshRunnable, REFRESH_INTERVAL_MS)
         }
     }
 
@@ -148,17 +153,35 @@ class HomeFragment : Fragment() {
                         root.findViewById<View>(R.id.lightPulse).alpha = (0.18f + (lightProgress / 140f)).coerceAtMost(0.8f)
                     }
 
+                    val temperatureIcon = root.findViewById<ImageView>(R.id.temperatureIcon)
+                    val foodIcon = root.findViewById<ImageView>(R.id.foodIcon)
+                    val waterIcon = root.findViewById<ImageView>(R.id.waterIcon)
+                    val gasIcon = root.findViewById<ImageView>(R.id.gasIcon)
+                    val lampIcon = root.findViewById<ImageView>(R.id.lampIcon)
+                    val pumpIcon = root.findViewById<ImageView>(R.id.pumpIcon)
+                    val motionIcon = root.findViewById<ImageView>(R.id.motionIcon)
+                    val syncIcon = root.findViewById<ImageView>(R.id.syncIcon)
+                    val humidityIcon = root.findViewById<ImageView>(R.id.humidityIcon)
+                    val lightIcon = root.findViewById<ImageView>(R.id.lightIcon)
+
+                    lampIcon.setImageResource(if (snapshot.lampOn) R.drawable.ic_metric_light else R.drawable.ic_metric_lamp)
+                    lampIcon.imageTintList = ContextCompat.getColorStateList(requireContext(), R.color.theme_primary_text)
+                    foodIcon.alpha = iconAlphaForLevel(snapshot.foodLevelPercent)
+                    waterIcon.alpha = iconAlphaForLevel(snapshot.waterLevelPercent)
+
                     if (ThemeManager.animationsEnabled(requireContext())) {
-                        animateLight(root.findViewById(R.id.lightIcon), root.findViewById(R.id.lightPulse), lightProgress, intensity)
-                        animateFloat(root.findViewById(R.id.temperatureIcon), intensity)
-                        animateSway(root.findViewById(R.id.humidityIcon), intensity)
-                        animateBounce(root.findViewById(R.id.foodIcon), intensity)
-                        animateSway(root.findViewById(R.id.waterIcon), intensity)
-                        animatePulse(root.findViewById(R.id.gasIcon), (snapshot.gasRaw ?: 0) > 350, intensity)
-                        animatePulse(root.findViewById(R.id.motionIcon), snapshot.motionDetected, intensity)
-                        animatePulse(root.findViewById(R.id.lampIcon), snapshot.lampOn, intensity)
-                        animatePulse(root.findViewById(R.id.pumpIcon), snapshot.pumpOn, intensity)
-                        animateSpin(root.findViewById(R.id.syncIcon), intensity)
+                        animateLight(lightIcon, root.findViewById(R.id.lightPulse), lightProgress, intensity)
+                        animateTemperature(temperatureIcon, snapshot.temperatureC, intensity)
+                        animateSway(humidityIcon, intensity)
+                        animateFillLevel(foodIcon, snapshot.foodLevelPercent, intensity)
+                        animateFillLevel(waterIcon, snapshot.waterLevelPercent, intensity)
+                        animateGas(gasIcon, snapshot.gasRaw, intensity)
+                        animatePulse(motionIcon, snapshot.motionDetected, intensity)
+                        animateLamp(lampIcon, snapshot.lampOn, intensity)
+                        animatePulse(pumpIcon, snapshot.pumpOn, intensity)
+                        animateSpin(syncIcon, intensity)
+                    } else {
+                        resetMetricTransforms(temperatureIcon, foodIcon, waterIcon, gasIcon, lampIcon, pumpIcon, motionIcon, syncIcon, humidityIcon, lightIcon)
                     }
 
                     if (!offline && snapshot.alertText.isNotBlank()) {
@@ -180,7 +203,10 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun text(root: View, id: Int, value: String) { root.findViewById<TextView>(id).text = value }
+    private fun text(root: View, id: Int, value: String) {
+        root.findViewById<TextView>(id).text = value
+    }
+
     private fun summaryText(alert: String, motion: Boolean, dark: Boolean, lampOn: Boolean, offline: Boolean): String {
         if (offline) return "Mostrando a ultima leitura salva localmente enquanto a nuvem nao responde."
         if (alert.isNotBlank()) return alert
@@ -190,27 +216,161 @@ class HomeFragment : Fragment() {
             else -> getString(R.string.health_ok_message)
         }
     }
-    private fun foodDescription(level: Int?): String = when { (level ?: 0) < 25 -> getString(R.string.food_low); (level ?: 0) < 60 -> getString(R.string.food_mid); else -> getString(R.string.food_good) }
-    private fun waterDescription(level: Int?): String = when { (level ?: 0) < 25 -> getString(R.string.water_low); (level ?: 0) < 60 -> getString(R.string.water_mid); else -> getString(R.string.water_good) }
-    private fun gasDescription(raw: Int?): String = when { (raw ?: 0) > 450 -> getString(R.string.gas_high); (raw ?: 0) > 280 -> getString(R.string.gas_mid); else -> getString(R.string.gas_good) }
+
+    private fun foodDescription(level: Int?): String = when {
+        (level ?: 0) < 25 -> getString(R.string.food_low)
+        (level ?: 0) < 60 -> getString(R.string.food_mid)
+        else -> getString(R.string.food_good)
+    }
+
+    private fun waterDescription(level: Int?): String = when {
+        (level ?: 0) < 25 -> getString(R.string.water_low)
+        (level ?: 0) < 60 -> getString(R.string.water_mid)
+        else -> getString(R.string.water_good)
+    }
+
+    private fun gasDescription(raw: Int?): String = when {
+        (raw ?: 0) > 450 -> getString(R.string.gas_high)
+        (raw ?: 0) > 280 -> getString(R.string.gas_mid)
+        else -> getString(R.string.gas_good)
+    }
+
+    private fun iconAlphaForLevel(level: Int?): Float {
+        val normalized = ((level ?: 0).coerceIn(0, 100)) / 100f
+        return 0.45f + (normalized * 0.55f)
+    }
+
     private fun animateLight(icon: ImageView, pulse: View, progress: Int, intensity: Float) {
-        icon.animate().cancel(); pulse.animate().cancel(); val duration = (900 * intensity).toLong().coerceAtLeast(240)
+        icon.animate().cancel()
+        pulse.animate().cancel()
+        val duration = (900 * intensity).toLong().coerceAtLeast(240)
         if (progress >= 65) {
             icon.animate().rotationBy(180f * intensity).setDuration(duration).setInterpolator(AccelerateDecelerateInterpolator()).start()
             pulse.animate().scaleX(1.04f + (0.04f * intensity)).scaleY(1.04f + (0.04f * intensity)).alpha(0.75f).setDuration((650 * intensity).toLong().coerceAtLeast(220)).withEndAction {
                 pulse.animate().scaleX(1f).scaleY(1f).alpha(0.45f).setDuration((650 * intensity).toLong().coerceAtLeast(220)).start()
             }.start()
         } else {
-            ObjectAnimator.ofFloat(icon, "alpha", 0.45f, 1f).apply { this.duration = (950 * intensity).toLong().coerceAtLeast(240); repeatMode = ValueAnimator.REVERSE; repeatCount = 1; start() }
-            pulse.animate().scaleX(0.94f).scaleY(0.94f).setDuration((450 * intensity).toLong().coerceAtLeast(180)).withEndAction { pulse.animate().scaleX(1f).scaleY(1f).setDuration((450 * intensity).toLong().coerceAtLeast(180)).start() }.start()
+            ObjectAnimator.ofFloat(icon, "alpha", 0.45f, 1f).apply {
+                this.duration = (950 * intensity).toLong().coerceAtLeast(240)
+                repeatMode = ValueAnimator.REVERSE
+                repeatCount = 1
+                start()
+            }
+            pulse.animate().scaleX(0.94f).scaleY(0.94f).setDuration((450 * intensity).toLong().coerceAtLeast(180)).withEndAction {
+                pulse.animate().scaleX(1f).scaleY(1f).setDuration((450 * intensity).toLong().coerceAtLeast(180)).start()
+            }.start()
         }
     }
-    private fun animatePulse(icon: ImageView, active: Boolean, intensity: Float) {
-        icon.animate().cancel(); if (active) { val scale = 1.06f + (0.06f * intensity); val duration = (340 * intensity).toLong().coerceAtLeast(180); icon.animate().scaleX(scale).scaleY(scale).setDuration(duration).withEndAction { icon.animate().scaleX(1f).scaleY(1f).setDuration(duration).start() }.start() } else { icon.scaleX = 1f; icon.scaleY = 1f }
+
+    private fun animateTemperature(icon: ImageView, temperature: Double?, intensity: Float) {
+        icon.animate().cancel()
+        if ((temperature ?: 0.0) >= 31.0) {
+            val shake = 4f + (2f * intensity)
+            val duration = (120 * intensity).toLong().coerceAtLeast(90)
+            icon.animate().translationX(-shake).setDuration(duration).withEndAction {
+                icon.animate().translationX(shake).setDuration(duration).withEndAction {
+                    icon.animate().translationX(-shake * 0.5f).setDuration(duration).withEndAction {
+                        icon.animate().translationX(0f).setDuration(duration).start()
+                    }.start()
+                }.start()
+            }.start()
+        } else {
+            animateFloat(icon, intensity)
+        }
     }
-    private fun animateSpin(icon: ImageView, intensity: Float) { icon.animate().rotationBy(35f + (20f * intensity)).setDuration((700 * intensity).toLong().coerceAtLeast(220)).start() }
-    private fun animateFloat(icon: ImageView, intensity: Float) { val distance = -3f - intensity; val duration = (420 * intensity).toLong().coerceAtLeast(180); icon.animate().translationY(distance).setDuration(duration).withEndAction { icon.animate().translationY(0f).setDuration(duration).start() }.start() }
-    private fun animateSway(icon: ImageView, intensity: Float) { val angle = 6f + (2f * intensity); val duration = (320 * intensity).toLong().coerceAtLeast(160); icon.animate().rotation(-angle).setDuration(duration).withEndAction { icon.animate().rotation(angle).setDuration(duration).withEndAction { icon.animate().rotation(0f).setDuration(duration).start() }.start() }.start() }
-    private fun animateBounce(icon: ImageView, intensity: Float) { val distance = -4f - (2f * intensity); val duration = (260 * intensity).toLong().coerceAtLeast(140); icon.animate().translationY(distance).setDuration(duration).withEndAction { icon.animate().translationY(0f).setDuration(duration).start() }.start() }
-    override fun onDestroyView() { super.onDestroyView(); _binding = null }
+
+    private fun animateFillLevel(icon: ImageView, level: Int?, intensity: Float) {
+        icon.animate().cancel()
+        val normalized = ((level ?: 0).coerceIn(0, 100)) / 100f
+        val scale = 0.72f + (normalized * 0.42f)
+        val duration = (300 * intensity).toLong().coerceAtLeast(160)
+        icon.animate().scaleY(scale).scaleX(0.9f + (normalized * 0.2f)).setDuration(duration).withEndAction {
+            icon.animate().scaleY((scale + 1f) / 2f).scaleX(1f).setDuration(duration).start()
+        }.start()
+    }
+
+    private fun animateGas(icon: ImageView, gasRaw: Int?, intensity: Float) {
+        icon.animate().cancel()
+        val active = (gasRaw ?: 0) > 280
+        if (active) {
+            val drift = 3f + (2f * intensity)
+            val duration = (340 * intensity).toLong().coerceAtLeast(160)
+            icon.animate().translationX(-drift).translationY(-2f).setDuration(duration).withEndAction {
+                icon.animate().translationX(drift).translationY(1f).setDuration(duration).withEndAction {
+                    icon.animate().translationX(0f).translationY(0f).setDuration(duration).start()
+                }.start()
+            }.start()
+        } else {
+            icon.translationX = 0f
+            icon.translationY = 0f
+        }
+    }
+
+    private fun animateLamp(icon: ImageView, active: Boolean, intensity: Float) {
+        icon.animate().cancel()
+        if (active) {
+            val scale = 1.12f + (0.05f * intensity)
+            val duration = (280 * intensity).toLong().coerceAtLeast(160)
+            icon.animate().scaleX(scale).scaleY(scale).alpha(1f).setDuration(duration).withEndAction {
+                icon.animate().scaleX(1f).scaleY(1f).alpha(0.92f).setDuration(duration).start()
+            }.start()
+        } else {
+            icon.scaleX = 1f
+            icon.scaleY = 1f
+            icon.alpha = 0.74f
+        }
+    }
+
+    private fun animatePulse(icon: ImageView, active: Boolean, intensity: Float) {
+        icon.animate().cancel()
+        if (active) {
+            val scale = 1.06f + (0.06f * intensity)
+            val duration = (340 * intensity).toLong().coerceAtLeast(180)
+            icon.animate().scaleX(scale).scaleY(scale).setDuration(duration).withEndAction {
+                icon.animate().scaleX(1f).scaleY(1f).setDuration(duration).start()
+            }.start()
+        } else {
+            icon.scaleX = 1f
+            icon.scaleY = 1f
+        }
+    }
+
+    private fun animateSpin(icon: ImageView, intensity: Float) {
+        icon.animate().rotationBy(35f + (20f * intensity)).setDuration((700 * intensity).toLong().coerceAtLeast(220)).start()
+    }
+
+    private fun animateFloat(icon: ImageView, intensity: Float) {
+        val distance = -3f - intensity
+        val duration = (420 * intensity).toLong().coerceAtLeast(180)
+        icon.animate().translationY(distance).setDuration(duration).withEndAction {
+            icon.animate().translationY(0f).setDuration(duration).start()
+        }.start()
+    }
+
+    private fun animateSway(icon: ImageView, intensity: Float) {
+        val angle = 6f + (2f * intensity)
+        val duration = (320 * intensity).toLong().coerceAtLeast(160)
+        icon.animate().rotation(-angle).setDuration(duration).withEndAction {
+            icon.animate().rotation(angle).setDuration(duration).withEndAction {
+                icon.animate().rotation(0f).setDuration(duration).start()
+            }.start()
+        }.start()
+    }
+
+    private fun resetMetricTransforms(vararg icons: ImageView) {
+        icons.forEach { icon ->
+            icon.animate().cancel()
+            icon.translationX = 0f
+            icon.translationY = 0f
+            icon.scaleX = 1f
+            icon.scaleY = 1f
+            icon.rotation = 0f
+            icon.alpha = 1f
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
 }

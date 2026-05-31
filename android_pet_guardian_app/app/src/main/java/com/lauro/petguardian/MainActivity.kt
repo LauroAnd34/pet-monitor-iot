@@ -1,4 +1,4 @@
-﻿package com.lauro.petguardian
+package com.lauro.petguardian
 
 import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
@@ -11,7 +11,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.imageview.ShapeableImageView
 import com.lauro.petguardian.data.DashboardPayload
 import com.lauro.petguardian.databinding.ActivityMainBinding
 import com.lauro.petguardian.ui.ControlsFragment
@@ -42,7 +41,7 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
     private val bottomBar by lazy { findViewById<MaterialCardView>(R.id.bottomBar) }
     private val headerCard by lazy { findViewById<MaterialCardView>(R.id.headerCard) }
     private val photoBubble by lazy { findViewById<MaterialCardView>(R.id.photoBubble) }
-    private val headerAvatar by lazy { findViewById<ShapeableImageView>(R.id.headerAvatar) }
+    private val headerAvatar by lazy { findViewById<ImageView>(R.id.headerAvatar) }
     private var photoBubbleBreathing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,9 +64,9 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
     private fun showOnboardingIfNeeded() {
         if (ProfileManager.onboardingSeen(this)) return
         MaterialAlertDialogBuilder(this)
-            .setTitle("Bem-vindo ao Meu Pet")
-            .setMessage("O app conversa com o hub do pet, mostra ambiente, historico, comandos remotos e ja esta preparado para camera e automacoes mais avancadas.")
-            .setPositiveButton("Entendi") { dialog, _ ->
+            .setTitle(getString(R.string.onboarding_title))
+            .setMessage(getString(R.string.onboarding_body))
+            .setPositiveButton(getString(R.string.onboarding_cta)) { dialog, _ ->
                 ProfileManager.saveOnboardingSeen(this)
                 dialog.dismiss()
             }
@@ -138,17 +137,24 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
         if (avatarFile == null || !avatarFile.exists()) {
             headerAvatar.setImageResource(R.drawable.ic_paw)
             headerAvatar.imageTintList = ColorStateList.valueOf(getColor(R.color.theme_primary_dark))
+            headerAvatar.clearColorFilter()
             headerAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE
+            headerAvatar.invalidate()
         } else {
             runCatching {
                 val bitmap = BitmapFactory.decodeFile(avatarFile.absolutePath)
+                    ?: error("Nao foi possivel decodificar avatar salvo.")
                 headerAvatar.setImageBitmap(bitmap)
                 headerAvatar.imageTintList = null
+                headerAvatar.clearColorFilter()
                 headerAvatar.scaleType = ImageView.ScaleType.CENTER_CROP
+                headerAvatar.invalidate()
             }.onFailure {
                 headerAvatar.setImageResource(R.drawable.ic_paw)
                 headerAvatar.imageTintList = ColorStateList.valueOf(getColor(R.color.theme_primary_dark))
+                headerAvatar.clearColorFilter()
                 headerAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                headerAvatar.invalidate()
             }
         }
         animateAvatarRefresh()
@@ -220,18 +226,8 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
         val targetIconAlpha = if (active) 1f else 0.74f
         val targetLabelAlpha = if (active) 1f else if (center) 0.9f else 0.82f
         val iconScale = if (active) 1.1f else 1f
-        icon.animate()
-            .alpha(targetIconAlpha)
-            .scaleX(iconScale)
-            .scaleY(iconScale)
-            .setDuration(220)
-            .setInterpolator(AccelerateDecelerateInterpolator())
-            .start()
-        label.animate()
-            .alpha(targetLabelAlpha)
-            .setDuration(220)
-            .setInterpolator(AccelerateDecelerateInterpolator())
-            .start()
+        icon.animate().alpha(targetIconAlpha).scaleX(iconScale).scaleY(iconScale).setDuration(220).setInterpolator(AccelerateDecelerateInterpolator()).start()
+        label.animate().alpha(targetLabelAlpha).setDuration(220).setInterpolator(AccelerateDecelerateInterpolator()).start()
     }
 
     private fun refreshGlobalAnimations() {
@@ -250,7 +246,6 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
     private fun startPhotoBubbleBreathing() {
         if (photoBubbleBreathing) return
         photoBubbleBreathing = true
-
         fun pulse() {
             if (!photoBubbleBreathing || !ThemeManager.animationsEnabled(this)) return
             val boost = if (currentTab == MainTab.PHOTO) 1.08f else 1.03f
@@ -272,7 +267,6 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
                 }
                 .start()
         }
-
         pulse()
     }
 

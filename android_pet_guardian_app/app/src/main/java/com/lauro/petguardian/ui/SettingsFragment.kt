@@ -1,7 +1,8 @@
-ï»¿package com.lauro.petguardian.ui
+package com.lauro.petguardian.ui
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -11,9 +12,12 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.widget.AppCompatImageView
 import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.slider.Slider
 import com.lauro.petguardian.ProfileManager
 import com.lauro.petguardian.R
 import com.lauro.petguardian.ThemeManager
@@ -21,10 +25,12 @@ import com.lauro.petguardian.databinding.FragmentSettingsBinding
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.max
+import kotlin.math.min
 
 class SettingsFragment : Fragment() {
     companion object {
         private const val TAG = "SettingsFragment"
+        private const val AVATAR_OUTPUT_SIZE = 720
     }
 
     interface SettingsHost {
@@ -43,17 +49,7 @@ class SettingsFragment : Fragment() {
             return@registerForActivityResult
         }
         Log.d(TAG, "Avatar selecionado: $uri")
-        val saved = runCatching { saveAvatarFile(uri) }
-            .onFailure { Log.e(TAG, "Erro ao salvar avatar", it) }
-            .getOrDefault(false)
-        if (!saved) {
-            Toast.makeText(requireContext(), "Nao foi possivel salvar a foto.", Toast.LENGTH_SHORT).show()
-            return@registerForActivityResult
-        }
-        showAvatarPreview()
-        Toast.makeText(requireContext(), "Foto salva no perfil.", Toast.LENGTH_SHORT).show()
-        (activity as? SettingsHost)?.onAvatarChanged()
-        refreshThemeState()
+        showAvatarEditor(uri)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -63,7 +59,6 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         card(R.id.themeBlossom).setOnClickListener { selectTheme("blossom") }
         card(R.id.themeMint).setOnClickListener { selectTheme("mint") }
         card(R.id.themeButter).setOnClickListener { selectTheme("butter") }
@@ -72,6 +67,11 @@ class SettingsFragment : Fragment() {
         card(R.id.themeOcean).setOnClickListener { selectTheme("ocean") }
 
         binding.chooseAvatarButton.setOnClickListener { avatarPicker.launch("image/*") }
+        binding.avatarPreview.setOnClickListener {
+            if (avatarFile()?.exists() == true) {
+                openAvatarFullScreen()
+            }
+        }
         binding.removeAvatarButton.setOnClickListener {
             ThemeManager.avatarPath(requireContext())?.let { File(it).delete() }
             ThemeManager.clearAvatar(requireContext())
@@ -88,30 +88,11 @@ class SettingsFragment : Fragment() {
             notifyAppearanceChanged()
         }
 
-        binding.animationSwitch.setOnCheckedChangeListener { _, checked ->
-            if (isApplyingState) return@setOnCheckedChangeListener
-            ThemeManager.saveAnimationsEnabled(requireContext(), checked)
-            notifyAppearanceChanged()
-        }
-        binding.autoRefreshSwitch.setOnCheckedChangeListener { _, checked ->
-            if (isApplyingState) return@setOnCheckedChangeListener
-            ThemeManager.saveAutoRefreshEnabled(requireContext(), checked)
-        }
-        binding.relativeTimeSwitch.setOnCheckedChangeListener { _, checked ->
-            if (isApplyingState) return@setOnCheckedChangeListener
-            ThemeManager.saveRelativeTimeEnabled(requireContext(), checked)
-            notifyAppearanceChanged()
-        }
-        binding.showGasSwitch.setOnCheckedChangeListener { _, checked ->
-            if (isApplyingState) return@setOnCheckedChangeListener
-            ThemeManager.saveShowGasCard(requireContext(), checked)
-            notifyAppearanceChanged()
-        }
-        binding.showSyncSwitch.setOnCheckedChangeListener { _, checked ->
-            if (isApplyingState) return@setOnCheckedChangeListener
-            ThemeManager.saveShowSyncCard(requireContext(), checked)
-            notifyAppearanceChanged()
-        }
+        binding.animationSwitch.setOnCheckedChangeListener { _, checked -> if (!isApplyingState) { ThemeManager.saveAnimationsEnabled(requireContext(), checked); notifyAppearanceChanged() } }
+        binding.autoRefreshSwitch.setOnCheckedChangeListener { _, checked -> if (!isApplyingState) ThemeManager.saveAutoRefreshEnabled(requireContext(), checked) }
+        binding.relativeTimeSwitch.setOnCheckedChangeListener { _, checked -> if (!isApplyingState) { ThemeManager.saveRelativeTimeEnabled(requireContext(), checked); notifyAppearanceChanged() } }
+        binding.showGasSwitch.setOnCheckedChangeListener { _, checked -> if (!isApplyingState) { ThemeManager.saveShowGasCard(requireContext(), checked); notifyAppearanceChanged() } }
+        binding.showSyncSwitch.setOnCheckedChangeListener { _, checked -> if (!isApplyingState) { ThemeManager.saveShowSyncCard(requireContext(), checked); notifyAppearanceChanged() } }
 
         binding.textScaleStandard.setOnClickListener { setTextScale("standard") }
         binding.textScaleLarge.setOnClickListener { setTextScale("large") }
@@ -129,14 +110,12 @@ class SettingsFragment : Fragment() {
         isApplyingState = true
         val current = ThemeManager.current(requireContext()).id
         val hasAvatar = avatarFile()?.exists() == true
-
         updateCard(card(R.id.themeBlossom), current == "blossom")
         updateCard(card(R.id.themeMint), current == "mint")
         updateCard(card(R.id.themeButter), current == "butter")
         updateCard(card(R.id.themeCocoa), current == "cocoa")
         updateCard(card(R.id.themeLavender), current == "lavender")
         updateCard(card(R.id.themeOcean), current == "ocean")
-
         binding.removeAvatarButton.isEnabled = hasAvatar
         binding.petNameInput.setText(ProfileManager.petName(requireContext()).orEmpty())
         binding.homeNameInput.setText(ProfileManager.homeName(requireContext()).orEmpty())
@@ -153,12 +132,7 @@ class SettingsFragment : Fragment() {
         highlightSelection(binding.startHome, ThemeManager.startTab(requireContext()) == "home")
         highlightSelection(binding.startHistory, ThemeManager.startTab(requireContext()) == "history")
         highlightSelection(binding.startControls, ThemeManager.startTab(requireContext()) == "controls")
-
-        if (hasAvatar) {
-            showAvatarPreview()
-        } else {
-            showAvatarPlaceholder()
-        }
+        if (hasAvatar) showAvatarPreview() else showAvatarPlaceholder()
         isApplyingState = false
     }
 
@@ -185,11 +159,54 @@ class SettingsFragment : Fragment() {
 
     private fun avatarFile(): File? = ThemeManager.avatarPath(requireContext())?.let(::File)
 
-    private fun saveAvatarFile(uri: Uri): Boolean {
+    private fun showAvatarEditor(uri: Uri) {
+        val sourceBitmap = decodeBitmapFromUri(uri, 1600)
+        if (sourceBitmap == null) {
+            Toast.makeText(requireContext(), "Não foi possível abrir a foto.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_avatar_editor, null)
+        val previewImage = dialogView.findViewById<AppCompatImageView>(R.id.avatarEditorPreview)
+        val zoomSlider = dialogView.findViewById<Slider>(R.id.avatarZoomSlider)
+        var currentZoom = zoomSlider.value
+
+        fun renderPreview() {
+            val previewBitmap = buildAvatarBitmap(sourceBitmap, currentZoom, 420)
+            previewImage.setImageBitmap(previewBitmap)
+            previewImage.imageTintList = null
+            previewImage.clearColorFilter()
+            previewImage.scaleType = ImageView.ScaleType.CENTER_CROP
+        }
+
+        renderPreview()
+        zoomSlider.addOnChangeListener { _, value, _ ->
+            currentZoom = value
+            renderPreview()
+        }
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setView(dialogView)
+            .setNegativeButton("Cancelar", null)
+            .setPositiveButton("Usar foto") { _, _ ->
+                val avatarBitmap = buildAvatarBitmap(sourceBitmap, currentZoom, AVATAR_OUTPUT_SIZE)
+                val saved = saveAvatarBitmap(avatarBitmap)
+                if (!saved) {
+                    Toast.makeText(requireContext(), "Não foi possível salvar a foto.", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                showAvatarPreview()
+                Toast.makeText(requireContext(), "Foto salva no perfil.", Toast.LENGTH_SHORT).show()
+                (activity as? SettingsHost)?.onAvatarChanged()
+                refreshThemeState()
+            }
+            .show()
+    }
+
+    private fun saveAvatarBitmap(bitmap: Bitmap): Boolean {
         val avatarFile = File(requireContext().filesDir, "pet_avatar.jpg")
-        val bitmap = decodeBitmapFromUri(uri, 720) ?: return false
         FileOutputStream(avatarFile).use { output ->
-            val compressed = bitmap.compress(Bitmap.CompressFormat.JPEG, 88, output)
+            val compressed = bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)
             output.flush()
             if (!compressed) {
                 Log.e(TAG, "Compressao do avatar falhou.")
@@ -201,74 +218,81 @@ class SettingsFragment : Fragment() {
         return avatarFile.exists() && avatarFile.length() > 0L
     }
 
+    private fun buildAvatarBitmap(source: Bitmap, zoom: Float, targetSize: Int): Bitmap {
+        val minSide = min(source.width, source.height).toFloat()
+        val cropSide = (minSide / zoom).coerceAtLeast(120f)
+        val cropSideInt = cropSide.toInt().coerceAtMost(min(source.width, source.height))
+        val left = ((source.width - cropSideInt) / 2).coerceAtLeast(0)
+        val top = ((source.height - cropSideInt) / 2).coerceAtLeast(0)
+        val cropped = Bitmap.createBitmap(source, left, top, cropSideInt, cropSideInt)
+        return Bitmap.createScaledBitmap(cropped, targetSize, targetSize, true)
+    }
+
     private fun decodeBitmapFromUri(uri: Uri, maxSide: Int): Bitmap? {
         val resolver = requireContext().contentResolver
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: run {
-            Log.e(TAG, "Nao foi possivel abrir InputStream do avatar.")
-            return null
+        return try {
+            val source = ImageDecoder.createSource(resolver, uri)
+            val decoded = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                decoder.isMutableRequired = false
+                val longestSide = max(info.size.width, info.size.height)
+                if (longestSide > maxSide) {
+                    val ratio = maxSide.toFloat() / longestSide.toFloat()
+                    val width = (info.size.width * ratio).toInt().coerceAtLeast(1)
+                    val height = (info.size.height * ratio).toInt().coerceAtLeast(1)
+                    decoder.setTargetSize(width, height)
+                }
+            }
+            Log.d(TAG, "Avatar decodificado via ImageDecoder em ${decoded.width}x${decoded.height}")
+            decoded
+        } catch (error: Exception) {
+            Log.e(TAG, "Falha ao decodificar avatar com ImageDecoder", error)
+            null
         }
-
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-            Log.e(TAG, "Dimensoes invalidas do avatar: ${bounds.outWidth}x${bounds.outHeight}")
-            return null
-        }
-
-        val sample = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxSide)
-        val decodeOptions = BitmapFactory.Options().apply {
-            inSampleSize = sample
-            inPreferredConfig = Bitmap.Config.ARGB_8888
-        }
-
-        val decoded = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) } ?: run {
-            Log.e(TAG, "Falha ao decodificar avatar com inSampleSize=$sample")
-            return null
-        }
-        Log.d(TAG, "Avatar decodificado em ${decoded.width}x${decoded.height} com sample=$sample")
-        return resizeBitmap(decoded, maxSide)
-    }
-
-    private fun calculateInSampleSize(width: Int, height: Int, maxSide: Int): Int {
-        var sample = 1
-        val longest = max(width, height)
-        while (longest / sample > maxSide * 2) {
-            sample *= 2
-        }
-        return sample.coerceAtLeast(1)
-    }
-
-    private fun resizeBitmap(bitmap: Bitmap, maxSide: Int): Bitmap {
-        val width = bitmap.width
-        val height = bitmap.height
-        val longest = max(width, height)
-        if (longest <= maxSide) return bitmap
-
-        val ratio = maxSide.toFloat() / longest.toFloat()
-        val targetWidth = (width * ratio).toInt().coerceAtLeast(1)
-        val targetHeight = (height * ratio).toInt().coerceAtLeast(1)
-        val scaled = Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
-        if (scaled != bitmap) bitmap.recycle()
-        return scaled
     }
 
     private fun showAvatarPreview() {
         val file = avatarFile()
-        val bitmap = file?.takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.absolutePath) }
-        if (bitmap == null) {
+        if (file == null || !file.exists()) {
             Log.e(TAG, "Preview do avatar nao pode ser carregado do arquivo local.")
+            showAvatarPlaceholder()
+            return
+        }
+        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+        if (bitmap == null) {
+            Log.e(TAG, "Preview do avatar nao pode ser decodificado do arquivo salvo.")
             showAvatarPlaceholder()
             return
         }
         Log.d(TAG, "Preview do avatar carregado com sucesso.")
         binding.avatarPreview.setImageBitmap(bitmap)
         binding.avatarPreview.imageTintList = null
+        binding.avatarPreview.clearColorFilter()
         binding.avatarPreview.scaleType = ImageView.ScaleType.CENTER_CROP
+        binding.avatarPreview.invalidate()
+    }
+
+    private fun openAvatarFullScreen() {
+        val file = avatarFile() ?: return
+        val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return
+        val imageView = AppCompatImageView(requireContext()).apply {
+            setImageBitmap(bitmap)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            adjustViewBounds = true
+            setPadding(18, 18, 18, 18)
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setView(imageView)
+            .setPositiveButton("Fechar", null)
+            .show()
     }
 
     private fun showAvatarPlaceholder() {
         binding.avatarPreview.setImageResource(R.drawable.ic_paw)
         binding.avatarPreview.imageTintList = null
+        binding.avatarPreview.clearColorFilter()
         binding.avatarPreview.scaleType = ImageView.ScaleType.CENTER_INSIDE
+        binding.avatarPreview.invalidate()
     }
 
     private fun highlightSelection(button: MaterialButton, selected: Boolean) {

@@ -48,15 +48,23 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
-                    <com.google.android.material.imageview.ShapeableImageView
-                        android:id="@+id/avatarPreview"
+                    <FrameLayout
                         android:layout_width="92dp"
                         android:layout_height="92dp"
-                        android:scaleType="centerCrop"
-                        android:src="@drawable/ic_paw"
-                        app:shapeAppearanceOverlay="@style/PetAvatarShape"
-                        app:strokeColor="@color/theme_border"
-                        app:strokeWidth="1dp" />
+                        android:background="@drawable/avatar_bubble"
+                        android:padding="4dp">
+
+                        <androidx.appcompat.widget.AppCompatImageView
+                            android:id="@+id/avatarPreview"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:layout_gravity="center"
+                            android:background="@drawable/avatar_clip"
+                            android:clipToOutline="true"
+                            android:scaleType="centerCrop"
+                            android:src="@drawable/ic_paw"
+                            android:tint="@color/theme_primary_dark" />
+                    </FrameLayout>
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -215,11 +223,13 @@
                     android:layout_marginTop="18dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
+
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:orientation="vertical">
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -227,6 +237,7 @@
                             android:textColor="@color/theme_primary_text"
                             android:textSize="16sp"
                             android:textStyle="bold" />
+
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -235,6 +246,7 @@
                             android:textColor="@color/theme_secondary_text"
                             android:textSize="13sp" />
                     </LinearLayout>
+
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/animationSwitch"
                         android:layout_width="wrap_content"
@@ -247,11 +259,13 @@
                     android:layout_marginTop="14dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
+
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:orientation="vertical">
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -259,6 +273,7 @@
                             android:textColor="@color/theme_primary_text"
                             android:textSize="16sp"
                             android:textStyle="bold" />
+
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -267,6 +282,7 @@
                             android:textColor="@color/theme_secondary_text"
                             android:textSize="13sp" />
                     </LinearLayout>
+
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/autoRefreshSwitch"
                         android:layout_width="wrap_content"
@@ -279,11 +295,13 @@
                     android:layout_marginTop="14dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
+
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:orientation="vertical">
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -291,6 +309,7 @@
                             android:textColor="@color/theme_primary_text"
                             android:textSize="16sp"
                             android:textStyle="bold" />
+
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -299,6 +318,7 @@
                             android:textColor="@color/theme_secondary_text"
                             android:textSize="13sp" />
                     </LinearLayout>
+
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/relativeTimeSwitch"
                         android:layout_width="wrap_content"
@@ -311,11 +331,13 @@
                     android:layout_marginTop="14dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
+
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:orientation="vertical">
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -323,6 +345,7 @@
                             android:textColor="@color/theme_primary_text"
                             android:textSize="16sp"
                             android:textStyle="bold" />
+
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -331,6 +354,7 @@
                             android:textColor="@color/theme_secondary_text"
                             android:textSize="13sp" />
                     </LinearLayout>
+
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/showGasSwitch"
                         android:layout_width="wrap_content"
@@ -343,11 +367,13 @@
                     android:layout_marginTop="14dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
+
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:orientation="vertical">
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -355,6 +381,7 @@
                             android:textColor="@color/theme_primary_text"
                             android:textSize="16sp"
                             android:textStyle="bold" />
+
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -363,6 +390,7 @@
                             android:textColor="@color/theme_secondary_text"
                             android:textSize="13sp" />
                     </LinearLayout>
+
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/showSyncSwitch"
                         android:layout_width="wrap_content"
@@ -405,8 +433,9 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="14dp"
                     android:orientation="horizontal">
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/textScaleStandard"
                         style="@style/Widget.Material3.Button.OutlinedButton"
@@ -414,7 +443,16 @@
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="6dp"
                         android:layout_weight="1"
-                        android:text="@string/settings_text_standard" />
+                        android:ellipsize="end"
+                        android:insetBottom="0dp"
+                        android:insetTop="0dp"
+                        android:maxLines="1"
+                        android:minHeight="0dp"
+                        android:paddingBottom="12dp"
+                        android:paddingTop="12dp"
+                        android:text="Padr&#227;o"
+                        android:textSize="11sp" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/textScaleLarge"
                         style="@style/Widget.Material3.Button.OutlinedButton"
@@ -422,7 +460,15 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
                         android:layout_weight="1"
-                        android:text="@string/settings_text_large" />
+                        android:ellipsize="end"
+                        android:insetBottom="0dp"
+                        android:insetTop="0dp"
+                        android:maxLines="1"
+                        android:minHeight="0dp"
+                        android:paddingBottom="12dp"
+                        android:paddingTop="12dp"
+                        android:text="Maior"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
                 <TextView
@@ -445,33 +491,61 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="14dp"
                     android:orientation="horizontal">
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/animationSoft"
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginEnd="6dp"
+                        android:layout_marginEnd="4dp"
                         android:layout_weight="1"
-                        android:text="@string/settings_animation_soft" />
+                        android:ellipsize="end"
+                        android:insetBottom="0dp"
+                        android:insetTop="0dp"
+                        android:maxLines="1"
+                        android:minHeight="0dp"
+                        android:paddingBottom="12dp"
+                        android:paddingTop="12dp"
+                        android:text="Suave"
+                        android:textSize="11sp" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/animationNormal"
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginEnd="4dp"
                         android:layout_weight="1"
-                        android:text="@string/settings_animation_normal" />
-                </LinearLayout>
+                        android:ellipsize="end"
+                        android:insetBottom="0dp"
+                        android:insetTop="0dp"
+                        android:maxLines="1"
+                        android:minHeight="0dp"
+                        android:paddingBottom="12dp"
+                        android:paddingTop="12dp"
+                        android:text="Normal"
+                        android:textSize="11sp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/animationVivid"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="@string/settings_animation_vivid" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/animationVivid"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:insetBottom="0dp"
+                        android:insetTop="0dp"
+                        android:maxLines="1"
+                        android:minHeight="0dp"
+                        android:paddingBottom="12dp"
+                        android:paddingTop="12dp"
+                        android:text="Viva"
+                        android:textSize="11sp" />
+                </LinearLayout>
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -493,33 +567,61 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="14dp"
                     android:orientation="horizontal">
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/startHome"
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginEnd="6dp"
+                        android:layout_marginEnd="4dp"
                         android:layout_weight="1"
-                        android:text="@string/settings_start_home" />
+                        android:ellipsize="end"
+                        android:insetBottom="0dp"
+                        android:insetTop="0dp"
+                        android:maxLines="1"
+                        android:minHeight="0dp"
+                        android:paddingBottom="12dp"
+                        android:paddingTop="12dp"
+                        android:text="In&#237;cio"
+                        android:textSize="11sp" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/startHistory"
                         style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginEnd="4dp"
                         android:layout_weight="1"
-                        android:text="@string/settings_start_history" />
-                </LinearLayout>
+                        android:ellipsize="end"
+                        android:insetBottom="0dp"
+                        android:insetTop="0dp"
+                        android:maxLines="1"
+                        android:minHeight="0dp"
+                        android:paddingBottom="12dp"
+                        android:paddingTop="12dp"
+                        android:text="Hist&#243;rico"
+                        android:textSize="11sp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/startControls"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="@string/settings_start_controls" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/startControls"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:insetBottom="0dp"
+                        android:insetTop="0dp"
+                        android:maxLines="1"
+                        android:minHeight="0dp"
+                        android:paddingBottom="12dp"
+                        android:paddingTop="12dp"
+                        android:text="Controle"
+                        android:textSize="11sp" />
+                </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
