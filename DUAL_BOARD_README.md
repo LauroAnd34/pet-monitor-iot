@@ -1,21 +1,14 @@
 # Pet Guardian Hub - ESP32 + Pico W BitDogLab
 
-Arquitetura reformulada para duas placas:
+Arquitetura reformulada:
 
 - `ESP32`: hub principal com sensores, bomba, motor DC do comedouro, automacao e web app
-- `Pico W / BitDogLab`: lampada visual usando a matriz de LED
 
-## Divisao recomendada dos sensores
-
-Para este projeto, a melhor divisao pratica e:
-
-- `ESP32`: `PIR`, `DHT11`, `sensor de gas`, `LDR`, `2 ultrassonicos`, `motor DC`, `bomba`
-- `Pico W / BitDogLab`: matriz de LED
+- `ESP32`: `PIR`, `DHT11`, `sensor de gas`, `LDR`, `2 ultrassonicos`, `motor DC`, `bomba`, `matriz de LED`.
 
 Motivo:
 
-- o `ESP32` lida melhor com varios sensores, saidas, Wi-Fi e painel web ao mesmo tempo
-- a `BitDogLab` brilha mais como modulo dedicado para a matriz de LED
+- o `ESP32` lida melhor com varios sensores, saidas, Wi-Fi e painel web ao mesmo temp
 - manter os sensores todos no `ESP32` simplifica muito a logica e a manutencao
 
 Se voce quiser muito deslocar um sensor para a BitDogLab, o mais plausivel seria o `LDR`, mas eu nao recomendo nessa primeira versao porque complica a sincronizacao sem trazer grande ganho.
