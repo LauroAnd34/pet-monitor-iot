@@ -3,7 +3,7 @@
 Projeto base para atividade de IoT usando:
 
 - `ESP32` principal para sensores, servo, LED e painel web
-- `ESP32-CAM` para monitoramento visual
+- `ESP32 com câmera` para monitoramento visual
 
 O sistema monitora:
 
@@ -35,7 +35,6 @@ No PlatformIO, as dependencias principais ja estao no `platformio.ini`.
 Se for usar Arduino IDE, instale:
 
 - `DHT sensor library`
-- `ESP32Servo`
 - pacote de placas `ESP32 by Espressif Systems`
 
 ## Pinagem sugerida do ESP32 principal
@@ -48,7 +47,6 @@ Voce pode alterar no topo do arquivo `esp32_main.ino`.
 - `PIR`: GPIO 27
 - `MQ-x gas analogico`: GPIO 34
 - `LDR / sensor de luminosidade analogico`: GPIO 35
-- `Servo`: GPIO 14
 - `LED`: GPIO 2
 
 ## Configuracao do sensor de luminosidade
@@ -75,24 +73,6 @@ O usuario pode editar no app:
 - limite de escuridao
 - tempo de permanencia do LED ligado
 
-## Pinagem do ESP32-CAM
-
-O codigo foi preparado para o modelo `AI Thinker ESP32-CAM`, que e o mais comum.
-
-## Como usar sem IP publico ou URL
-
-Voce nao precisa de servidor externo para a atividade.
-
-O "app" pode ser a propria pagina web hospedada no ESP32 principal.
-
-No codigo atual, o `ESP32` esta configurado por padrao em `Access Point`, ou seja:
-
-- ele cria uma rede Wi-Fi chamada `PetMonitorESP32`
-- a senha e `pet12345`
-- o celular conecta direto nessa rede
-- o painel abre no endereco `http://192.168.4.1`
-
-Isso resolve o problema de nao ter dominio, hospedagem ou backend.
 
 ## O que configurar no codigo
 
