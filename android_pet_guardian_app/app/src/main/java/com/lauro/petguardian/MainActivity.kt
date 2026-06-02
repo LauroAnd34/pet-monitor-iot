@@ -1,8 +1,13 @@
-package com.lauro.petguardian
+﻿package com.lauro.petguardian
 
 import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -50,6 +55,7 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setupNavigation()
+        setupHeaderAvatar()
         applyThemePalette(ThemeManager.current(this))
         applyTextScale()
         refreshAvatar()
@@ -87,6 +93,10 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
         navPhoto.setOnClickListener { openTab(MainTab.PHOTO) }
         navControls.setOnClickListener { openTab(MainTab.CONTROLS) }
         navSettings.setOnClickListener { openTab(MainTab.SETTINGS) }
+    }
+
+    private fun setupHeaderAvatar() {
+        headerAvatar.setOnClickListener { openHeaderAvatarFullScreen() }
     }
 
     fun updateStatus(text: String, online: Boolean) {
@@ -139,24 +149,22 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
             headerAvatar.imageTintList = ColorStateList.valueOf(getColor(R.color.theme_primary_dark))
             headerAvatar.clearColorFilter()
             headerAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE
-            headerAvatar.invalidate()
         } else {
             runCatching {
                 val bitmap = BitmapFactory.decodeFile(avatarFile.absolutePath)
-                    ?: error("Nao foi possivel decodificar avatar salvo.")
+                    ?: error("Não foi possível decodificar avatar salvo.")
                 headerAvatar.setImageBitmap(bitmap)
                 headerAvatar.imageTintList = null
                 headerAvatar.clearColorFilter()
                 headerAvatar.scaleType = ImageView.ScaleType.CENTER_CROP
-                headerAvatar.invalidate()
             }.onFailure {
                 headerAvatar.setImageResource(R.drawable.ic_paw)
                 headerAvatar.imageTintList = ColorStateList.valueOf(getColor(R.color.theme_primary_dark))
                 headerAvatar.clearColorFilter()
                 headerAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE
-                headerAvatar.invalidate()
             }
         }
+        headerAvatar.invalidate()
         animateAvatarRefresh()
     }
 
@@ -203,11 +211,11 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
     }
 
     private fun highlightTab(tab: MainTab, palette: ThemePalette) {
-        decorateNav(navHomeIcon, navHomeLabel, tab == MainTab.HOME, palette)
-        decorateNav(navHistoryIcon, navHistoryLabel, tab == MainTab.HISTORY, palette)
-        decorateNav(navPhotoIcon, navPhotoLabel, tab == MainTab.PHOTO, palette, true)
-        decorateNav(navControlsIcon, navControlsLabel, tab == MainTab.CONTROLS, palette)
-        decorateNav(navSettingsIcon, navSettingsLabel, tab == MainTab.SETTINGS, palette)
+        decorateNav(navHome, navHomeIcon, navHomeLabel, tab == MainTab.HOME, palette)
+        decorateNav(navHistory, navHistoryIcon, navHistoryLabel, tab == MainTab.HISTORY, palette)
+        decorateNav(navPhoto, navPhotoIcon, navPhotoLabel, tab == MainTab.PHOTO, palette, true)
+        decorateNav(navControls, navControlsIcon, navControlsLabel, tab == MainTab.CONTROLS, palette)
+        decorateNav(navSettings, navSettingsIcon, navSettingsLabel, tab == MainTab.SETTINGS, palette)
         val selectedScale = if (tab == MainTab.PHOTO) 1.06f else 1f
         val selectedAlpha = if (tab == MainTab.PHOTO) 1f else 0.94f
         photoBubble.animate()
@@ -219,15 +227,40 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
             .start()
     }
 
-    private fun decorateNav(icon: ImageView, label: TextView, active: Boolean, palette: ThemePalette, center: Boolean = false) {
+    private fun decorateNav(
+        container: LinearLayout,
+        icon: ImageView,
+        label: TextView,
+        active: Boolean,
+        palette: ThemePalette,
+        center: Boolean = false
+    ) {
         val color = if (active) palette.primaryDark else palette.softText
         icon.imageTintList = ColorStateList.valueOf(color)
         label.setTextColor(color)
-        val targetIconAlpha = if (active) 1f else 0.74f
-        val targetLabelAlpha = if (active) 1f else if (center) 0.9f else 0.82f
-        val iconScale = if (active) 1.1f else 1f
-        icon.animate().alpha(targetIconAlpha).scaleX(iconScale).scaleY(iconScale).setDuration(220).setInterpolator(AccelerateDecelerateInterpolator()).start()
-        label.animate().alpha(targetLabelAlpha).setDuration(220).setInterpolator(AccelerateDecelerateInterpolator()).start()
+        if (!center) {
+            container.background = if (active) {
+                InsetDrawable(
+                    GradientDrawable().apply {
+                        cornerRadius = 24f
+                        setColor(palette.accent)
+                        setStroke(1, palette.primaryDark)
+                    },
+                    18,
+                    14,
+                    18,
+                    14
+                )
+            } else {
+                null
+            }
+            container.setPadding(4, 8, 4, 8)
+        }
+        val iconScale = if (active) 1.05f else 1f
+        val labelScale = if (active) 1.01f else 1f
+        icon.animate().alpha(if (active) 1f else 0.74f).scaleX(iconScale).scaleY(iconScale).setDuration(220).setInterpolator(AccelerateDecelerateInterpolator()).start()
+        label.animate().alpha(if (active) 1f else if (center) 0.9f else 0.82f).scaleX(labelScale).scaleY(labelScale).setDuration(220).setInterpolator(AccelerateDecelerateInterpolator()).start()
+        container.alpha = if (active || center) 1f else 0.95f
     }
 
     private fun refreshGlobalAnimations() {
@@ -248,9 +281,9 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
         photoBubbleBreathing = true
         fun pulse() {
             if (!photoBubbleBreathing || !ThemeManager.animationsEnabled(this)) return
-            val boost = if (currentTab == MainTab.PHOTO) 1.08f else 1.03f
+            val boost = if (currentTab == MainTab.PHOTO) 1.08f else 1.025f
             photoBubble.animate()
-                .translationY(-3f)
+                .translationY(-2f)
                 .scaleX(boost)
                 .scaleY(boost)
                 .setDuration(900)
@@ -283,6 +316,25 @@ class MainActivity : AppCompatActivity(), SettingsFragment.SettingsHost {
             .setDuration(260)
             .setInterpolator(AccelerateDecelerateInterpolator())
             .start()
+    }
+
+    private fun openHeaderAvatarFullScreen() {
+        val avatarPath = ThemeManager.avatarPath(this) ?: return
+        val avatarFile = File(avatarPath)
+        if (!avatarFile.exists()) return
+        val bitmap = BitmapFactory.decodeFile(avatarFile.absolutePath) ?: return
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_avatar_viewer, null)
+        dialogView.findViewById<ImageView>(R.id.viewerImage).apply {
+            setImageBitmap(bitmap)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+        }
+        dialogView.findViewById<TextView>(R.id.viewerTitle).text = ProfileManager.petName(this) ?: getString(R.string.pet_name_default)
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setView(dialogView)
+            .setPositiveButton("Fechar", null)
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.show()
     }
 }
 

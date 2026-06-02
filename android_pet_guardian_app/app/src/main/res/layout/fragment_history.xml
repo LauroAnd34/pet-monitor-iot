@@ -56,65 +56,112 @@
                         android:textColor="@color/theme_secondary_text"
                         android:textSize="14sp" />
 
-                    <HorizontalScrollView
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="14dp"
-                        android:scrollbars="none">
+                        android:text="@string/history_filters_hint"
+                        android:textColor="@color/theme_secondary_text"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
 
-                        <LinearLayout
-                            android:layout_width="wrap_content"
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp">
+
+                        <HorizontalScrollView
+                            android:id="@+id/filterScroller"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal">
+                            android:clipToPadding="false"
+                            android:paddingEnd="52dp"
+                            android:scrollbars="none">
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/filterAllButton"
-                                style="@style/Widget.Material3.Button.TonalButton"
+                            <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/history_filter_all" />
+                                android:orientation="horizontal">
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/filterTodayButton"
-                                style="@style/Widget.Material3.Button.TonalButton"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:text="@string/history_filter_today" />
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/filterAllButton"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/history_filter_all" />
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/filterWeekButton"
-                                style="@style/Widget.Material3.Button.TonalButton"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:text="@string/history_filter_week" />
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/filterTodayButton"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:text="@string/history_filter_today" />
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/filterAlertsButton"
-                                style="@style/Widget.Material3.Button.TonalButton"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:text="@string/history_filter_alerts" />
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/filterWeekButton"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:text="@string/history_filter_week" />
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/filterMotionButton"
-                                style="@style/Widget.Material3.Button.TonalButton"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:text="@string/history_filter_motion" />
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/filterAlertsButton"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:text="@string/history_filter_alerts" />
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/filterFeedButton"
-                                style="@style/Widget.Material3.Button.TonalButton"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:text="@string/history_filter_feed" />
-                        </LinearLayout>
-                    </HorizontalScrollView>
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/filterMotionButton"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:text="@string/history_filter_motion" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/filterFeedButton"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:text="@string/history_filter_feed" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/filterWaterButton"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:text="@string/history_filter_water" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/filterFoodLowButton"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:text="@string/history_filter_food_low" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/filterStaleButton"
+                                    style="@style/Widget.Material3.Button.TonalButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:text="@string/history_filter_stale" />
+                            </LinearLayout>
+                        </HorizontalScrollView>
+
+                        <View
+                            android:layout_width="52dp"
+                            android:layout_height="match_parent"
+                            android:layout_gravity="end"
+                            android:background="@drawable/history_filters_fade" />
+                    </FrameLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

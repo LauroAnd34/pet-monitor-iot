@@ -1,8 +1,11 @@
 package com.lauro.petguardian.ui
 
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.ImageDecoder
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -10,6 +13,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.AppCompatImageView
@@ -48,7 +52,6 @@ class SettingsFragment : Fragment() {
             Log.d(TAG, "Selecao de avatar cancelada.")
             return@registerForActivityResult
         }
-        Log.d(TAG, "Avatar selecionado: $uri")
         showAvatarEditor(uri)
     }
 
@@ -68,16 +71,13 @@ class SettingsFragment : Fragment() {
 
         binding.chooseAvatarButton.setOnClickListener { avatarPicker.launch("image/*") }
         binding.avatarPreview.setOnClickListener {
-            if (avatarFile()?.exists() == true) {
-                openAvatarFullScreen()
-            }
+            if (avatarFile()?.exists() == true) openAvatarFullScreen()
         }
         binding.removeAvatarButton.setOnClickListener {
             ThemeManager.avatarPath(requireContext())?.let { File(it).delete() }
             ThemeManager.clearAvatar(requireContext())
             showAvatarPlaceholder()
             Toast.makeText(requireContext(), "Foto removida.", Toast.LENGTH_SHORT).show()
-            Log.d(TAG, "Avatar removido do armazenamento local.")
             (activity as? SettingsHost)?.onAvatarChanged()
             refreshThemeState()
         }
@@ -162,7 +162,7 @@ class SettingsFragment : Fragment() {
     private fun showAvatarEditor(uri: Uri) {
         val sourceBitmap = decodeBitmapFromUri(uri, 1600)
         if (sourceBitmap == null) {
-            Toast.makeText(requireContext(), "N�o foi poss�vel abrir a foto.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "NÃ£o foi possÃ­vel abrir a foto.", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -172,8 +172,7 @@ class SettingsFragment : Fragment() {
         var currentZoom = zoomSlider.value
 
         fun renderPreview() {
-            val previewBitmap = buildAvatarBitmap(sourceBitmap, currentZoom, 420)
-            previewImage.setImageBitmap(previewBitmap)
+            previewImage.setImageBitmap(buildAvatarBitmap(sourceBitmap, currentZoom, 420))
             previewImage.imageTintList = null
             previewImage.clearColorFilter()
             previewImage.scaleType = ImageView.ScaleType.CENTER_CROP
@@ -190,9 +189,8 @@ class SettingsFragment : Fragment() {
             .setNegativeButton("Cancelar", null)
             .setPositiveButton("Usar foto") { _, _ ->
                 val avatarBitmap = buildAvatarBitmap(sourceBitmap, currentZoom, AVATAR_OUTPUT_SIZE)
-                val saved = saveAvatarBitmap(avatarBitmap)
-                if (!saved) {
-                    Toast.makeText(requireContext(), "N�o foi poss�vel salvar a foto.", Toast.LENGTH_SHORT).show()
+                if (!saveAvatarBitmap(avatarBitmap)) {
+                    Toast.makeText(requireContext(), "NÃ£o foi possÃ­vel salvar a foto.", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
                 showAvatarPreview()
@@ -208,13 +206,9 @@ class SettingsFragment : Fragment() {
         FileOutputStream(avatarFile).use { output ->
             val compressed = bitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)
             output.flush()
-            if (!compressed) {
-                Log.e(TAG, "Compressao do avatar falhou.")
-                return false
-            }
+            if (!compressed) return false
         }
         ThemeManager.saveAvatarPath(requireContext(), avatarFile.absolutePath)
-        Log.d(TAG, "Avatar salvo em ${avatarFile.absolutePath} (${avatarFile.length()} bytes)")
         return avatarFile.exists() && avatarFile.length() > 0L
     }
 
@@ -232,21 +226,20 @@ class SettingsFragment : Fragment() {
         val resolver = requireContext().contentResolver
         return try {
             val source = ImageDecoder.createSource(resolver, uri)
-            val decoded = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+            ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
                 decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 decoder.isMutableRequired = false
                 val longestSide = max(info.size.width, info.size.height)
                 if (longestSide > maxSide) {
                     val ratio = maxSide.toFloat() / longestSide.toFloat()
-                    val width = (info.size.width * ratio).toInt().coerceAtLeast(1)
-                    val height = (info.size.height * ratio).toInt().coerceAtLeast(1)
-                    decoder.setTargetSize(width, height)
+                    decoder.setTargetSize(
+                        (info.size.width * ratio).toInt().coerceAtLeast(1),
+                        (info.size.height * ratio).toInt().coerceAtLeast(1)
+                    )
                 }
             }
-            Log.d(TAG, "Avatar decodificado via ImageDecoder em ${decoded.width}x${decoded.height}")
-            decoded
         } catch (error: Exception) {
-            Log.e(TAG, "Falha ao decodificar avatar com ImageDecoder", error)
+            Log.e(TAG, "Falha ao decodificar avatar", error)
             null
         }
     }
@@ -254,17 +247,14 @@ class SettingsFragment : Fragment() {
     private fun showAvatarPreview() {
         val file = avatarFile()
         if (file == null || !file.exists()) {
-            Log.e(TAG, "Preview do avatar nao pode ser carregado do arquivo local.")
             showAvatarPlaceholder()
             return
         }
         val bitmap = BitmapFactory.decodeFile(file.absolutePath)
         if (bitmap == null) {
-            Log.e(TAG, "Preview do avatar nao pode ser decodificado do arquivo salvo.")
             showAvatarPlaceholder()
             return
         }
-        Log.d(TAG, "Preview do avatar carregado com sucesso.")
         binding.avatarPreview.setImageBitmap(bitmap)
         binding.avatarPreview.imageTintList = null
         binding.avatarPreview.clearColorFilter()
@@ -275,16 +265,18 @@ class SettingsFragment : Fragment() {
     private fun openAvatarFullScreen() {
         val file = avatarFile() ?: return
         val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return
-        val imageView = AppCompatImageView(requireContext()).apply {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_avatar_viewer, null)
+        dialogView.findViewById<ImageView>(R.id.viewerImage).apply {
             setImageBitmap(bitmap)
             scaleType = ImageView.ScaleType.FIT_CENTER
-            adjustViewBounds = true
-            setPadding(18, 18, 18, 18)
         }
-        MaterialAlertDialogBuilder(requireContext())
-            .setView(imageView)
+        dialogView.findViewById<TextView>(R.id.viewerTitle).text = ProfileManager.petName(requireContext()) ?: getString(R.string.pet_name_default)
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setView(dialogView)
             .setPositiveButton("Fechar", null)
-            .show()
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.show()
     }
 
     private fun showAvatarPlaceholder() {
@@ -296,17 +288,25 @@ class SettingsFragment : Fragment() {
     }
 
     private fun highlightSelection(button: MaterialButton, selected: Boolean) {
-        button.alpha = if (selected) 1f else 0.72f
+        val palette = ThemeManager.current(requireContext())
+        button.backgroundTintList = ColorStateList.valueOf(if (selected) palette.primary else palette.surface)
+        button.strokeColor = ColorStateList.valueOf(if (selected) palette.primaryDark else palette.border)
+        button.strokeWidth = if (selected) 4 else 2
+        button.setTextColor(if (selected) palette.text else palette.softText)
+        button.alpha = if (selected) 1f else 0.9f
         button.scaleX = if (selected) 1.02f else 1f
         button.scaleY = if (selected) 1.02f else 1f
+        button.elevation = if (selected) 6f else 0f
     }
 
     private fun card(id: Int): MaterialCardView = binding.root.findViewById(id)
 
     private fun updateCard(card: MaterialCardView, selected: Boolean) {
-        card.alpha = if (selected) 1f else 0.86f
+        card.alpha = if (selected) 1f else 0.88f
         card.scaleX = if (selected) 1.02f else 1f
         card.scaleY = if (selected) 1.02f else 1f
+        card.strokeWidth = if (selected) 3 else 1
+        card.strokeColor = if (selected) ThemeManager.current(requireContext()).primaryDark else ThemeManager.current(requireContext()).border
     }
 
     private fun selectTheme(themeId: String) {

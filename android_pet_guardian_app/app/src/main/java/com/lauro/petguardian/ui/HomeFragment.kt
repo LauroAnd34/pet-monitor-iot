@@ -23,7 +23,7 @@ import com.lauro.petguardian.databinding.FragmentHomeBinding
 
 class HomeFragment : Fragment() {
     companion object {
-        private const val REFRESH_INTERVAL_MS = 10000L
+        private const val REFRESH_INTERVAL_MS = 4000L
     }
 
     private var _binding: FragmentHomeBinding? = null
