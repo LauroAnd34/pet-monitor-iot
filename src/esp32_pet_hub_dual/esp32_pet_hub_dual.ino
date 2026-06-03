@@ -16,9 +16,11 @@ IPAddress apSubnet(255, 255, 255, 0);
 const bool WEBHOOK_ENABLED = false;
 const char* WEBHOOK_URL = "";
 const bool CAMERA_INTEGRATION_READY = true;
-const bool CLOUD_SYNC_ENABLED = false;
-const char* CLOUD_INGEST_URL = "";
-const char* CLOUD_DEVICE_TOKEN = "";
+const bool CLOUD_SYNC_ENABLED = true;
+const char* CLOUD_INGEST_URL = "https://rinxodbpufmcoqudcryz.supabase.co/functions/v1/ingest-telemetry";
+const char* CLOUD_DEVICE_TOKEN = "9a4a2633bb134b0ba8e6c6c3ce1a9304";
+const char* CLOUD_COMMAND_URL = "https://rinxodbpufmcoqudcryz.supabase.co/functions/v1/poll-command";
+constexpr unsigned long COMMAND_POLL_INTERVAL_MS = 5000;
 constexpr unsigned long CLOUD_SYNC_INTERVAL_MS = 15000;
 
 constexpr uint8_t DHT_PIN = 4;
@@ -31,16 +33,20 @@ constexpr uint8_t PIR_PIN = 27;
 constexpr uint8_t GAS_PIN = 34;
 constexpr uint8_t LDR_PIN = 35;
 constexpr uint8_t BITDOGLAB_LAMP_SIGNAL_PIN = 13;
+constexpr uint8_t BUZZER_PIN = 2;
+constexpr uint8_t BUZZER_RESOLUTION = 8;
+constexpr uint8_t BUZZER_DUTY = 255;
+constexpr float BUZZER_PITCH_SCALE = 2.0f;
 
 // Ponte H - Canal A: motor do comedouro
-constexpr uint8_t FEED_IN1_PIN = 14;
-constexpr uint8_t FEED_IN2_PIN = 12;
-constexpr uint8_t FEED_EN_PIN  = 25;
+constexpr uint8_t FEED_IN1_PIN = 32;
+constexpr uint8_t FEED_IN2_PIN = 33;
+constexpr uint8_t FEED_EN_PIN = 25;
 
 // Ponte H - Canal B: bomba d'agua
 constexpr uint8_t PUMP_IN3_PIN = 26;
 constexpr uint8_t PUMP_IN4_PIN = 23;
-constexpr uint8_t PUMP_EN_PIN  = 33;
+constexpr uint8_t PUMP_EN_PIN = 14;
 
 constexpr float FOOD_CONTAINER_HEIGHT_CM = 18.0f;
 constexpr float WATER_CONTAINER_HEIGHT_CM = 16.0f;
@@ -56,6 +62,27 @@ constexpr unsigned long DEFAULT_LAMP_DURATION_MS = 120000;
 constexpr unsigned long PUMP_COOLDOWN_MS = 10UL * 60UL * 1000UL;
 constexpr int DEFAULT_DARK_THRESHOLD = 1800;
 constexpr int DEFAULT_LAMP_BRIGHTNESS = 7;
+
+constexpr int NOTE_E4 = 330;
+constexpr int NOTE_G4 = 392;
+constexpr int NOTE_A4 = 440;
+constexpr int NOTE_AS4 = 466;
+constexpr int NOTE_B4 = 494;
+constexpr int NOTE_C5 = 523;
+constexpr int NOTE_E5 = 659;
+constexpr int NOTE_F5 = 698;
+constexpr int NOTE_G5 = 784;
+constexpr int NOTE_A5 = 880;
+constexpr int REST = 0;
+constexpr int BUZZER_TEMPO = 200;
+
+const int FEED_MELODY[] = {
+  NOTE_E5, 8, NOTE_E5, 8, REST, 8, NOTE_E5, 8, REST, 8, NOTE_C5, 8, NOTE_E5, 8,
+  NOTE_G5, 4, REST, 4, NOTE_G4, 8, REST, 4,
+  NOTE_C5, -4, NOTE_G4, 8, REST, 4, NOTE_E4, -4,
+  NOTE_A4, 4, NOTE_B4, 4, NOTE_AS4, 8, NOTE_A4, 4,
+  NOTE_G4, -8, NOTE_E5, -8, NOTE_G5, -8, NOTE_A5, 4, NOTE_F5, 8, NOTE_G5, 8,
+};
 
 DHT dht(DHT_PIN, DHT_TYPE);
 WebServer server(80);
@@ -120,6 +147,9 @@ unsigned long lastSensorReadMs = 0;
 unsigned long lastAlertSentMs = 0;
 unsigned long lampAutoUntilMs = 0;
 unsigned long lastCloudAttemptMs = 0;
+unsigned long lastCommandPollMs = 0;
+
+void logSensorSnapshot();
 
 String jsonFloatOrNull(float value, int decimals) {
   if (isnan(value)) return "null";
@@ -261,12 +291,44 @@ void runFeedMotor(unsigned long durationMs) {
   setFeedMotor(false);
 }
 
+void playBuzzerTone(int frequency, int durationMs) {
+  if (frequency <= 0) {
+    ledcWriteTone(BUZZER_PIN, 0);
+    delay(durationMs);
+    return;
+  }
+
+  int boostedFrequency = static_cast<int>(frequency * BUZZER_PITCH_SCALE);
+  ledcWriteTone(BUZZER_PIN, boostedFrequency);
+  ledcWrite(BUZZER_PIN, BUZZER_DUTY);
+  delay(durationMs);
+  ledcWrite(BUZZER_PIN, 0);
+}
+
+void playFeedingMelody() {
+  const int notes = sizeof(FEED_MELODY) / sizeof(FEED_MELODY[0]) / 2;
+  const int wholeNote = (60000 * 4) / BUZZER_TEMPO;
+
+  for (int index = 0; index < notes * 2; index += 2) {
+    int divider = FEED_MELODY[index + 1];
+    int noteDuration = 0;
+
+    if (divider > 0) {
+      noteDuration = wholeNote / divider;
+    } else {
+      noteDuration = (wholeNote / abs(divider)) * 1.5;
+    }
+
+    playBuzzerTone(FEED_MELODY[index], noteDuration);
+  }
+}
+
 void dispenseFood() {
   runFeedMotor(FEED_MOTOR_RUN_MS);
+  playFeedingMelody();
   state.lastFeedMs = millis();
   Serial.println("[ACAO] Motor do comedouro acionado");
 }
-
 void picoLampOn(bool manualMode) {
   picoState.manualMode = manualMode;
   picoState.lampOn = true;
@@ -278,6 +340,8 @@ void picoLampOff(bool manualMode) {
   picoState.manualMode = manualMode;
   picoState.lampOn = false;
   digitalWrite(BITDOGLAB_LAMP_SIGNAL_PIN, LOW);
+  ledcWrite(BUZZER_PIN, 0);
+  ledcWriteTone(BUZZER_PIN, 0);
 }
 
 void evaluateAutomation() {
@@ -342,16 +406,19 @@ void syncToCloud() {
   if (!CLOUD_SYNC_ENABLED) {
     state.cloudConnected = false;
     state.lastCloudStatus = "Nuvem desativada";
+    Serial.println("[CLOUD] Sincronizacao desativada.");
     return;
   }
 
   if (WiFi.status() != WL_CONNECTED || String(CLOUD_INGEST_URL).length() == 0 || String(CLOUD_DEVICE_TOKEN).length() == 0) {
     state.cloudConnected = false;
     state.lastCloudStatus = "Configure Wi-Fi, URL e token";
+    Serial.println("[CLOUD] Wi-Fi, URL ou token nao configurados corretamente.");
     return;
   }
 
   HTTPClient http;
+  Serial.println("[CLOUD] Enviando telemetria...");
   http.begin(CLOUD_INGEST_URL);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("x-device-token", CLOUD_DEVICE_TOKEN);
@@ -376,9 +443,88 @@ void syncToCloud() {
     state.cloudConnected = true;
     state.lastCloudSyncMs = millis();
     state.lastCloudStatus = "Ultimo envio OK";
+    Serial.println("[CLOUD] Telemetria enviada com sucesso.");
   } else {
     state.cloudConnected = false;
     state.lastCloudStatus = "Falha HTTP " + String(httpCode);
+    Serial.println("[CLOUD] Falha ao enviar telemetria. Codigo HTTP: " + String(httpCode));
+    String responseBody = http.getString();
+    if (responseBody.length() > 0) {
+      Serial.println("[CLOUD] Resposta: " + responseBody);
+    }
+  }
+
+  http.end();
+}
+
+void logSensorSnapshot() {
+  Serial.println("[SENSORES] ------------------------------");
+  Serial.println("[SENSORES] Temp: " + jsonFloatOrNull(state.temperatureC, 1) + " C");
+  Serial.println("[SENSORES] Umidade: " + jsonFloatOrNull(state.humidity, 1) + " %");
+  Serial.println("[SENSORES] Racao: " + String(state.foodLevelPercent) + " %");
+  Serial.println("[SENSORES] Agua: " + String(state.waterLevelPercent) + " %");
+  Serial.println("[SENSORES] Gas: " + String(state.gasRaw));
+  Serial.println("[SENSORES] Luz: " + String(state.lightRaw) + (state.isDark ? " (escuro)" : " (claro)"));
+  Serial.println("[SENSORES] Presenca: " + String(state.motionDetected ? "sim" : "nao"));
+  Serial.println("[SENSORES] Lampada: " + String(picoState.lampOn ? "ligada" : "desligada"));
+  Serial.println("[SENSORES] Bomba: " + String(state.pumpOn ? "ligada" : "desligada"));
+}
+
+String extractJsonString(const String& payload, const String& key) {
+  String needle = "\"" + key + "\":\"";
+  int start = payload.indexOf(needle);
+  if (start < 0) return "";
+  start += needle.length();
+  int end = payload.indexOf('"', start);
+  if (end < 0) return "";
+  return payload.substring(start, end);
+}
+
+void executeRemoteCommand(const String& commandType) {
+  if (commandType.length() == 0) return;
+
+  Serial.println("[CMD] Executando comando remoto: " + commandType);
+
+  if (commandType == "feed_now") {
+    dispenseFood();
+  } else if (commandType == "pump_run") {
+    state.manualPumpMode = true;
+    setPumpForDuration(pumpConfig.durationMs);
+  } else if (commandType == "pump_auto") {
+    state.manualPumpMode = false;
+  } else if (commandType == "lamp_on") {
+    picoLampOn(true);
+  } else if (commandType == "lamp_off") {
+    picoLampOff(true);
+  } else if (commandType == "lamp_auto") {
+    picoState.manualMode = false;
+    evaluateAutomation();
+  } else {
+    Serial.println("[CMD] Comando remoto desconhecido.");
+    return;
+  }
+
+  Serial.println("[CMD] Comando remoto concluido.");
+}
+
+void pollRemoteCommands() {
+  if (!CLOUD_SYNC_ENABLED) return;
+  if (WiFi.status() != WL_CONNECTED) return;
+  if (String(CLOUD_COMMAND_URL).length() == 0 || String(CLOUD_DEVICE_TOKEN).length() == 0) return;
+
+  HTTPClient http;
+  http.begin(CLOUD_COMMAND_URL);
+  http.addHeader("x-device-token", CLOUD_DEVICE_TOKEN);
+
+  int httpCode = http.GET();
+  if (httpCode >= 200 && httpCode < 300) {
+    String responseBody = http.getString();
+    String commandType = extractJsonString(responseBody, "commandType");
+    if (commandType.length() > 0) {
+      executeRemoteCommand(commandType);
+    }
+  } else {
+    Serial.println("[CMD] Falha ao consultar comandos. HTTP: " + String(httpCode));
   }
 
   http.end();
@@ -747,24 +893,33 @@ void startSoftAp() {
 void connectToWiFi() {
   if (USE_SOFT_AP) {
     startSoftAp();
+    Serial.println("[WIFI] Modo Access Point ativo.");
+    Serial.println("[WIFI] URL local: " + state.appUrl);
     return;
   }
 
   WiFi.mode(WIFI_STA);
+  Serial.println("[WIFI] Conectando em: " + String(WIFI_SSID));
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   unsigned long startAttemptMs = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - startAttemptMs < 15000UL) {
+    Serial.print(".");
     delay(500);
   }
+  Serial.println();
 
   if (WiFi.status() == WL_CONNECTED) {
     state.networkMode = "Cliente Wi-Fi";
     state.appUrl = "http://" + WiFi.localIP().toString();
+    Serial.println("[WIFI] Conectado com sucesso.");
+    Serial.println("[WIFI] IP local: " + WiFi.localIP().toString());
     return;
   }
 
+  Serial.println("[WIFI] Falha ao conectar no roteador. Voltando para Access Point.");
   startSoftAp();
+  Serial.println("[WIFI] URL local: " + state.appUrl);
 }
 
 void setupPins() {
@@ -785,7 +940,11 @@ void setupPins() {
   pinMode(PUMP_IN4_PIN, OUTPUT);
   pinMode(PUMP_EN_PIN, OUTPUT);
 
+  ledcAttach(BUZZER_PIN, 2000, BUZZER_RESOLUTION);
+
   digitalWrite(BITDOGLAB_LAMP_SIGNAL_PIN, LOW);
+  ledcWrite(BUZZER_PIN, 0);
+  ledcWriteTone(BUZZER_PIN, 0);
   setFeedMotor(false);
   setPump(false);
 }
@@ -804,15 +963,21 @@ void setupServer() {
 void setup() {
   Serial.begin(115200);
   delay(400);
+  Serial.println();
+  Serial.println("=== Pet Guardian Hub ===");
+  Serial.println("[BOOT] Iniciando firmware...");
 
   state.bootMs = millis();
   loadConfig();
   picoState.brightness = lampConfig.brightness;
   dht.begin();
   setupPins();
+  Serial.println("[BOOT] Pinos configurados.");
   connectToWiFi();
   readSensors();
+  logSensorSnapshot();
   setupServer();
+  Serial.println("[BOOT] Servidor HTTP iniciado em: " + state.appUrl);
 }
 
 void loop() {
@@ -822,11 +987,16 @@ void loop() {
   if (now - lastSensorReadMs >= SENSOR_INTERVAL_MS) {
     lastSensorReadMs = now;
     readSensors();
+    logSensorSnapshot();
   }
 
   if (now - lastCloudAttemptMs >= CLOUD_SYNC_INTERVAL_MS) {
     lastCloudAttemptMs = now;
     syncToCloud();
   }
+
+  if (now - lastCommandPollMs >= COMMAND_POLL_INTERVAL_MS) {
+    lastCommandPollMs = now;
+    pollRemoteCommands();
+  }
 }
- 
