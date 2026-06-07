@@ -1,5 +1,17 @@
+# Arquivos locais do Android Studio / Gradle
+android_pet_guardian_app/.gradle/
+android_pet_guardian_app/.gradle-home/
+android_pet_guardian_app/app/build/
+android_pet_guardian_app/build/
+android_pet_guardian_app/local.properties
+
+# Arquivos locais de deploy
 .vercel/
+cloud/dashboard/.vercel/
 cloud/dashboard/vercel-deploy.out.txt
 cloud/dashboard/vercel-deploy.err.txt
 cloud/dashboard/vercel-link.out.txt
 cloud/dashboard/vercel-link.err.txt
+
+# Script auxiliar local
+fix_android_texts.ps1

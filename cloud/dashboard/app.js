@@ -1,33 +1,18 @@
-const config = window.PET_DASHBOARD_CONFIG ?? {};
+﻿const config = window.PET_DASHBOARD_CONFIG ?? {};
 const storageKey = "pet-guardian-theme";
 const state = {
   snapshot: null,
   history: [],
   device: null,
-  activeTheme: localStorage.getItem(storageKey) || config.defaultTheme || "blossom"
+  activeTheme: localStorage.getItem(storageKey) || config.defaultTheme || "blossom",
+  commandPending: false
 };
 
 const themes = [
-  {
-    id: "blossom",
-    name: "Blossom",
-    colors: ["#f5a7c1", "#ffdbe7", "#b6e6d3"]
-  },
-  {
-    id: "mint",
-    name: "Mint",
-    colors: ["#9adbb9", "#e7f9ef", "#f7d8e4"]
-  },
-  {
-    id: "butter",
-    name: "Butter",
-    colors: ["#f5c874", "#fff3cf", "#cfe9da"]
-  },
-  {
-    id: "cocoa",
-    name: "Cocoa",
-    colors: ["#dfac8f", "#fbe8dd", "#d7ebc8"]
-  }
+  { id: "blossom", name: "Blossom", colors: ["#f5a7c1", "#ffdbe7", "#b6e6d3"] },
+  { id: "mint", name: "Mint", colors: ["#9adbb9", "#e7f9ef", "#f7d8e4"] },
+  { id: "butter", name: "Butter", colors: ["#f5c874", "#fff3cf", "#cfe9da"] },
+  { id: "cocoa", name: "Cocoa", colors: ["#dfac8f", "#fbe8dd", "#d7ebc8"] }
 ];
 
 const demoPayload = {
@@ -98,9 +83,7 @@ function comfortLabel(snapshot) {
 
 function computeInsights(snapshot) {
   const insights = [];
-  if (!snapshot) {
-    return ["Sem dados ainda. Assim que o ESP32 sincronizar, os indicadores aparecem aqui."];
-  }
+  if (!snapshot) return ["Sem dados ainda. Assim que o ESP32 sincronizar, os indicadores aparecem aqui."];
 
   if ((snapshot.temperature_c ?? 0) >= 31) {
     insights.push("Temperatura acima do ideal. Vale rever ventilacao ou o ponto em que o pet descansa.");
@@ -243,20 +226,69 @@ async function fetchCloudData() {
   render(payload, "cloud");
 }
 
+function updateCommandStatus(message, isError = false) {
+  const status = el("commandStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.className = isError ? "chip chip-warn" : "chip";
+}
+
+async function sendCommand(commandType) {
+  if (config.demoMode || !config.commandApiBaseUrl || !config.dashboardToken) {
+    throw new Error("Comandos remotos ainda nao configurados.");
+  }
+
+  state.commandPending = true;
+  updateCommandStatus("Enviando comando...");
+
+  const response = await fetch(config.commandApiBaseUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-dashboard-token": config.dashboardToken
+    },
+    body: JSON.stringify({ commandType })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha HTTP ${response.status}`);
+  }
+
+  const payload = await response.json();
+  updateCommandStatus(payload.message || "Comando enviado com carinho.");
+}
+
 async function refresh() {
   try {
     await fetchCloudData();
+    if (!state.commandPending) {
+      updateCommandStatus("Pronto para enviar");
+    }
   } catch (error) {
     render(demoPayload, "demo");
     el("connectionBadge").textContent = "Sem nuvem";
     el("connectionBadge").className = "presence-pill warn";
     el("lastSyncLabel").textContent = `Erro: ${error.message}`;
+    updateCommandStatus("Comandos indisponiveis", true);
+  } finally {
+    state.commandPending = false;
   }
 }
 
 body.dataset.theme = state.activeTheme;
 renderThemeSelector();
 el("refreshButton").addEventListener("click", refresh);
+document.querySelectorAll("[data-command]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    try {
+      await sendCommand(button.dataset.command);
+      await refresh();
+    } catch (error) {
+      updateCommandStatus(error.message, true);
+      state.commandPending = false;
+    }
+  });
+});
 refresh();
 setInterval(refresh, Number(config.refreshIntervalMs || 15000));
 

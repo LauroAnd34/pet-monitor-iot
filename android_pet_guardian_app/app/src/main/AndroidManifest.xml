@@ -13,7 +13,13 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PetGuardian">
+        android:theme="@style/Theme.PetGuardian"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".PhotoAlbumActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".PhotoDetailActivity"

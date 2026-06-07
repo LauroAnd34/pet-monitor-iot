@@ -60,3 +60,6 @@ select distinct on (device_id)
   payload
 from public.telemetry_events
 order by device_id, created_at desc;
+
+create index if not exists device_commands_device_status_created_at_idx
+on public.device_commands(device_id, status, created_at asc);

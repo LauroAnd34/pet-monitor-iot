@@ -5,22 +5,15 @@ import org.json.JSONObject
 import java.time.OffsetDateTime
 import java.util.UUID
 
-private data class StoredPhotoRequest(
-    val id: String,
-    val requestedAt: String,
-    val status: String,
-    val album: String,
-    val reason: String,
-    val note: String
-)
-
 data class PhotoEntry(
     val id: String,
     val requestedAt: String,
     val status: String,
     val album: String,
     val reason: String,
-    val note: String
+    val note: String,
+    val imagePath: String = "",
+    val sourceUrl: String = ""
 )
 
 object PhotoAlbumStore {
@@ -33,7 +26,7 @@ object PhotoAlbumStore {
         val entry = PhotoEntry(
             id = UUID.randomUUID().toString(),
             requestedAt = OffsetDateTime.now().toString(),
-            status = "queued",
+            status = "requested",
             album = albumForReason(reason),
             reason = reason,
             note = "Aguardando a proxima captura da camera do sistema."
@@ -46,6 +39,8 @@ object PhotoAlbumStore {
 
     fun all(): List<PhotoEntry> = loadMutable()
 
+    fun fromAlbum(album: String): List<PhotoEntry> = all().filter { it.album == album && it.imagePath.isNotBlank() }
+
     fun updateStatus(id: String, status: String, note: String) {
         val items = loadMutable().map {
             if (it.id == id) it.copy(status = status, note = note) else it
@@ -53,13 +48,29 @@ object PhotoAlbumStore {
         save(items)
     }
 
-    fun todayCount(): Int = all().count { it.album == "Hoje" }
-    fun weekCount(): Int = all().count { it.album == "Ultimos 7 dias" }
-    fun eventCount(): Int = all().count { it.album == "Momentos marcados" }
+    fun attachCapture(id: String, status: String, note: String, imagePath: String, sourceUrl: String) {
+        val items = loadMutable().map {
+            if (it.id == id) {
+                it.copy(
+                    status = status,
+                    note = note,
+                    imagePath = imagePath,
+                    sourceUrl = sourceUrl
+                )
+            } else {
+                it
+            }
+        }
+        save(items)
+    }
+
+    fun todayCount(): Int = all().count { it.album == "Hoje" && it.imagePath.isNotBlank() }
+    fun weekCount(): Int = all().count { it.album == "Últimos 7 dias" && it.imagePath.isNotBlank() }
+    fun eventCount(): Int = all().count { it.album == "Momentos marcados" && it.imagePath.isNotBlank() }
 
     private fun albumForReason(reason: String): String = when (reason) {
         "alert" -> "Momentos marcados"
-        "weekly" -> "Ultimos 7 dias"
+        "weekly" -> "Últimos 7 dias"
         else -> "Hoje"
     }
 
@@ -77,7 +88,9 @@ object PhotoAlbumStore {
                     status = item.optString("status"),
                     album = item.optString("album"),
                     reason = item.optString("reason"),
-                    note = item.optString("note")
+                    note = item.optString("note"),
+                    imagePath = item.optString("image_path"),
+                    sourceUrl = item.optString("source_url")
                 )
             )
         }
@@ -95,6 +108,8 @@ object PhotoAlbumStore {
                     .put("album", item.album)
                     .put("reason", item.reason)
                     .put("note", item.note)
+                    .put("image_path", item.imagePath)
+                    .put("source_url", item.sourceUrl)
             )
         }
         prefs().edit().putString(KEY_ITEMS, json.toString()).apply()

@@ -27,7 +27,8 @@ class HistoryFragment : Fragment() {
     private val binding get() = _binding!!
     private val adapter = HistoryAdapter()
     private var fullHistory: List<HistoryEntry> = emptyList()
-    private var currentFilter: Filter = Filter.ALL
+    private var currentFilter: Filter = Filter.TODAY
+    private var expandedHistory = false
 
     private val autoRefreshRunnable = object : Runnable {
         override fun run() {
@@ -57,6 +58,10 @@ class HistoryFragment : Fragment() {
         binding.filterWaterButton.setOnClickListener { selectFilter(Filter.WATER_LOW) }
         binding.filterFoodLowButton.setOnClickListener { selectFilter(Filter.FOOD_LOW) }
         binding.filterStaleButton.setOnClickListener { selectFilter(Filter.STALE) }
+        binding.expandHistoryButton.setOnClickListener {
+            expandedHistory = !expandedHistory
+            applyHistory()
+        }
         updateFilterButtons()
         loadHistory(true)
     }
@@ -76,6 +81,7 @@ class HistoryFragment : Fragment() {
 
     private fun selectFilter(filter: Filter) {
         currentFilter = filter
+        expandedHistory = false
         updateFilterButtons()
         applyHistory()
         scrollFilterIntoView()
@@ -83,7 +89,7 @@ class HistoryFragment : Fragment() {
 
     private fun loadHistory(showLoading: Boolean) {
         if (showLoading) binding.swipeRefresh.isRefreshing = true
-        PetGuardianRepository.fetchDashboard(40) { result ->
+        PetGuardianRepository.fetchDashboard(24) { result ->
             activity?.runOnUiThread {
                 binding.swipeRefresh.isRefreshing = false
                 result.onSuccess { payload ->
@@ -112,13 +118,19 @@ class HistoryFragment : Fragment() {
             Filter.WEEK -> fullHistory.filter { UiFormatters.isWithinLastDays(it.createdAt, 7) }
             Filter.ALERTS -> fullHistory.filter { it.alertText.isNotBlank() }
             Filter.MOTION -> fullHistory.filter { it.motionDetected }
-            Filter.FEED -> fullHistory.filter { it.feedMotorOn || it.alertText.contains("racao", ignoreCase = true) || it.alertText.contains("ração", ignoreCase = true) }
+            Filter.FEED -> fullHistory.filter {
+                it.feedMotorOn ||
+                    it.alertText.contains("racao", ignoreCase = true) ||
+                    it.alertText.contains("ração", ignoreCase = true)
+            }
             Filter.WATER_LOW -> fullHistory.filter { (it.waterLevelPercent ?: 101) <= 35 }
             Filter.FOOD_LOW -> fullHistory.filter { (it.foodLevelPercent ?: 101) <= 35 }
             Filter.STALE -> fullHistory.filter { !UiFormatters.isRecent(it.createdAt) }
         }
+        val visibleItems = if (expandedHistory || filtered.size <= 6) filtered else filtered.take(6)
+
         adapter.setShowRelativeTime(ThemeManager.relativeTimeEnabled(requireContext()))
-        adapter.submitList(filtered)
+        adapter.submitList(visibleItems)
         binding.emptyState.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
         binding.totalReadingsValue.text = filtered.size.toString()
         binding.alertReadingsValue.text = filtered.count { it.alertText.isNotBlank() }.toString()
@@ -134,9 +146,32 @@ class HistoryFragment : Fragment() {
             Filter.FOOD_LOW -> getString(R.string.history_summary_food_low)
             Filter.STALE -> getString(R.string.history_summary_stale)
         }
-        updateTrend(binding.temperatureTrend, binding.temperatureTrendLabel, filtered.mapNotNull { it.temperatureC }.averageDoubleOrNull()?.let { (it / 40.0 * 100).toInt() } ?: 0, filtered.mapNotNull { it.temperatureC }.averageDoubleOrNull()?.let { UiFormatters.temperature(it) } ?: "--")
-        updateTrend(binding.humidityTrend, binding.humidityTrendLabel, filtered.mapNotNull { it.humidity }.averageDoubleOrNull()?.toInt() ?: 0, filtered.mapNotNull { it.humidity }.averageDoubleOrNull()?.let { UiFormatters.humidity(it) } ?: "--")
-        updateTrend(binding.foodTrend, binding.foodTrendLabel, filtered.mapNotNull { it.foodLevelPercent }.averageIntOrNull()?.toInt() ?: 0, filtered.mapNotNull { it.foodLevelPercent }.averageIntOrNull()?.toInt()?.let { "$it%" } ?: "--")
+        binding.expandHistoryButton.visibility = if (filtered.size > 6) View.VISIBLE else View.GONE
+        binding.expandHistoryButton.text = when {
+            expandedHistory -> getString(R.string.history_show_less)
+            currentFilter == Filter.TODAY -> getString(R.string.history_show_more_today)
+            else -> getString(R.string.history_show_more)
+        }
+        styleExpandButton(binding.expandHistoryButton)
+
+        updateTrend(
+            binding.temperatureTrend,
+            binding.temperatureTrendLabel,
+            filtered.mapNotNull { it.temperatureC }.averageDoubleOrNull()?.let { (it / 40.0 * 100).toInt() } ?: 0,
+            filtered.mapNotNull { it.temperatureC }.averageDoubleOrNull()?.let { UiFormatters.temperature(it) } ?: "--"
+        )
+        updateTrend(
+            binding.humidityTrend,
+            binding.humidityTrendLabel,
+            filtered.mapNotNull { it.humidity }.averageDoubleOrNull()?.toInt() ?: 0,
+            filtered.mapNotNull { it.humidity }.averageDoubleOrNull()?.let { UiFormatters.humidity(it) } ?: "--"
+        )
+        updateTrend(
+            binding.foodTrend,
+            binding.foodTrendLabel,
+            filtered.mapNotNull { it.foodLevelPercent }.averageIntOrNull()?.toInt() ?: 0,
+            filtered.mapNotNull { it.foodLevelPercent }.averageIntOrNull()?.toInt()?.let { "$it%" } ?: "--"
+        )
     }
 
     private fun updateTrend(bar: ProgressBar, label: TextView, progress: Int, value: String) {
@@ -165,6 +200,14 @@ class HistoryFragment : Fragment() {
         button.alpha = if (selected) 1f else 0.92f
         button.scaleX = if (selected) 1.03f else 1f
         button.scaleY = if (selected) 1.03f else 1f
+    }
+
+    private fun styleExpandButton(button: MaterialButton) {
+        val palette = ThemeManager.current(requireContext())
+        button.backgroundTintList = ColorStateList.valueOf(palette.primary)
+        button.setTextColor(palette.text)
+        button.strokeColor = ColorStateList.valueOf(palette.primaryDark)
+        button.strokeWidth = 2
     }
 
     private fun scrollFilterIntoView() {

@@ -6,18 +6,22 @@
 const char* WIFI_SSID = "Lauroo";
 const char* WIFI_PASSWORD = "Lalalauro23";
 
-// Resolucao mais leve para a OV7670 sem FIFO.
 #define CAM_RES QQVGA
 #define CAM_WIDTH 160
 #define CAM_HEIGHT 120
 #define CAM_COLOR_MODE RGB565
 
-// Pinagem adaptada para ESP32 DevKit comum com pinos expostos ate 35.
-// Nesta biblioteca, o HREF fica sem uso direto no camera_config_t.
+constexpr int CROP_LEFT = 8;
+constexpr int CROP_RIGHT = 8;
+constexpr int CROP_TOP = 10;
+constexpr int CROP_BOTTOM = 12;
+constexpr int OUT_WIDTH = CAM_WIDTH - CROP_LEFT - CROP_RIGHT;
+constexpr int OUT_HEIGHT = CAM_HEIGHT - CROP_TOP - CROP_BOTTOM;
+
 const camera_config_t cam_conf = {
   .D0 = 27,
-  .D1 = 17,
-  .D2 = 16,
+  .D1 = 5,
+  .D2 = 2,
   .D3 = 15,
   .D4 = 14,
   .D5 = 13,
@@ -34,8 +38,10 @@ const camera_config_t cam_conf = {
 OV7670 cam;
 WiFiServer server(80);
 constexpr size_t BMP_HEADER_SIZE = 54;
+constexpr size_t BMP_ROW_SIZE = ((OUT_WIDTH * 3) + 3) & ~3;
 unsigned char bmpHeader[BMP_HEADER_SIZE];
 uint8_t frameBuffer[CAM_WIDTH * CAM_HEIGHT * 2];
+uint8_t bmpRowBuffer[BMP_ROW_SIZE];
 
 unsigned long frameCount = 0;
 unsigned long lastFrameMs = 0;
@@ -54,7 +60,8 @@ void writeLittleEndian16(unsigned char* buffer, int offset, uint16_t value) {
 }
 
 void constructBmpHeader(unsigned char* header, uint32_t width, uint32_t height) {
-  const uint32_t pixelDataSize = width * height * 2;
+  const uint32_t rowSize = ((width * 3) + 3) & ~3;
+  const uint32_t pixelDataSize = rowSize * height;
   const uint32_t fileSize = BMP_HEADER_SIZE + pixelDataSize;
 
   memset(header, 0, BMP_HEADER_SIZE);
@@ -66,10 +73,45 @@ void constructBmpHeader(unsigned char* header, uint32_t width, uint32_t height) 
   writeLittleEndian32(header, 18, width);
   writeLittleEndian32(header, 22, height);
   writeLittleEndian16(header, 26, 1);
-  writeLittleEndian16(header, 28, 16);
+  writeLittleEndian16(header, 28, 24);
   writeLittleEndian32(header, 34, pixelDataSize);
   writeLittleEndian32(header, 38, 2835);
   writeLittleEndian32(header, 42, 2835);
+}
+
+void rgb565ToSoftColor(uint16_t pixel, uint8_t& outR, uint8_t& outG, uint8_t& outB) {
+  uint8_t r = ((pixel >> 11) & 0x1F) << 3;
+  uint8_t g = ((pixel >> 5) & 0x3F) << 2;
+  uint8_t b = (pixel & 0x1F) << 3;
+
+  uint16_t gray = (r * 30 + g * 45 + b * 25) / 100;
+  if (gray < 28) gray = 28;
+  if (gray > 225) gray = 225;
+
+  outR = static_cast<uint8_t>((gray * 55 + r * 45) / 100);
+  outG = static_cast<uint8_t>((gray * 62 + g * 38) / 100);
+  outB = static_cast<uint8_t>((gray * 58 + b * 42) / 100);
+
+  if (outG > outR + 28) outG = outR + 28;
+  if (outG > outB + 28) outG = outB + 28;
+}
+
+void buildClarityBmpRow(int sourceRowIndex) {
+  memset(bmpRowBuffer, 0, BMP_ROW_SIZE);
+  const uint16_t* srcRow = reinterpret_cast<const uint16_t*>(frameBuffer + (sourceRowIndex * CAM_WIDTH * 2));
+
+  for (int x = 0; x < OUT_WIDTH; ++x) {
+    uint16_t pixel = srcRow[x + CROP_LEFT];
+    uint8_t r = 0;
+    uint8_t g = 0;
+    uint8_t b = 0;
+    rgb565ToSoftColor(pixel, r, g, b);
+
+    size_t dst = x * 3;
+    bmpRowBuffer[dst + 0] = b;
+    bmpRowBuffer[dst + 1] = g;
+    bmpRowBuffer[dst + 2] = r;
+  }
 }
 
 void sendHtmlPage(WiFiClient& client) {
@@ -86,9 +128,9 @@ void sendHtmlPage(WiFiClient& client) {
   client.println("<style>");
   client.println("body{margin:0;padding:24px;font-family:Arial,sans-serif;background:#fff6f8;color:#4f3141;text-align:center;}");
   client.println(".card{max-width:760px;margin:0 auto;padding:20px;background:#fffdf8;border:1px solid #f0dbe2;border-radius:24px;box-shadow:0 18px 36px rgba(118,74,96,.08);}");
-  client.println("img{width:min(100%,680px);border-radius:18px;border:2px solid #f0dbe2;background:#f6eef2;image-rendering:auto;}");
+  client.println("img{width:min(100%,680px);border-radius:18px;border:2px solid #f0dbe2;background:#f6eef2;image-rendering:pixelated;}");
   client.println("a{color:#d85d8b;font-weight:bold;text-decoration:none;margin:0 10px;}");
-  client.println("small{display:block;margin-top:12px;color:#8b6878;}");
+  client.println("small{display:block;margin-top:12px;color:#8b6878;} ");
   client.println("</style>");
   client.println("</head>");
   client.println("<body>");
@@ -97,7 +139,7 @@ void sendHtmlPage(WiFiClient& client) {
   client.println("<p>ESP32 comum com OV7670 sem FIFO.</p>");
   client.println("<img src='/capture.bmp?reason=preview' alt='Foto atual da camera'>");
   client.println("<p><a href='/capture.bmp?reason=manual' target='_blank'>Tirar foto agora</a><a href='/status' target='_blank'>Ver status</a></p>");
-  client.println("<small>Ligacao extra: SIOD->21, SIOC->22, HREF pode ficar sem uso nesta biblioteca, RESET->3.3V, PWDN->GND.</small>");
+  client.println("<small>Modo clareza colorido: imagem cortada nas bordas e com cor suavizada para reduzir o ruido visual.</small>");
   client.println("</div>");
   client.println("</body>");
   client.println("</html>");
@@ -121,9 +163,9 @@ void sendStatus(WiFiClient& client) {
   client.print(lastReason);
   client.print("\",");
   client.print("\"width\":");
-  client.print(CAM_WIDTH);
+  client.print(OUT_WIDTH);
   client.print(",\"height\":");
-  client.print(CAM_HEIGHT);
+  client.print(OUT_HEIGHT);
   client.println("}");
 }
 
@@ -140,7 +182,10 @@ void sendCapture(WiFiClient& client, const String& reason) {
   client.println();
 
   client.write(bmpHeader, BMP_HEADER_SIZE);
-  client.write(frameBuffer, sizeof(frameBuffer));
+  for (int row = CAM_HEIGHT - CROP_BOTTOM - 1; row >= CROP_TOP; --row) {
+    buildClarityBmpRow(row);
+    client.write(bmpRowBuffer, BMP_ROW_SIZE);
+  }
 }
 
 String readRequestLine(WiFiClient& client) {
@@ -229,10 +274,20 @@ void setupCameraNode() {
   }
 
   cam.vflip(false);
-  constructBmpHeader(bmpHeader, CAM_WIDTH, CAM_HEIGHT);
+  cam.setAGC(1);
+  cam.setAEC(1);
+  cam.setAWB(0);
+  cam.setAWBR(72);
+  cam.setAWBG(64);
+  cam.setAWBB(88);
+  cam.setContrast(80);
+  cam.setBright(12);
+  cam.setPCLK(3, DBLV_CLK_x4);
+  constructBmpHeader(bmpHeader, OUT_WIDTH, OUT_HEIGHT);
   Serial.printf("[CAM] MID = %X\n", cam.getMID());
   Serial.printf("[CAM] PID = %X\n", cam.getPID());
-  Serial.printf("[CAM] Resolucao = %dx%d\n", CAM_WIDTH, CAM_HEIGHT);
+  Serial.printf("[CAM] Resolucao bruta = %dx%d\n", CAM_WIDTH, CAM_HEIGHT);
+  Serial.printf("[CAM] Resolucao exibida = %dx%d\n", OUT_WIDTH, OUT_HEIGHT);
 }
 
 void setup() {

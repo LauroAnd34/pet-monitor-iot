@@ -1,25 +1,28 @@
 package com.lauro.petguardian.ui
 
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.BitmapFactory
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import com.lauro.petguardian.PhotoDetailActivity
+import com.lauro.petguardian.PhotoAlbumActivity
 import com.lauro.petguardian.R
+import com.lauro.petguardian.ThemeManager
+import com.lauro.petguardian.data.PetGuardianRepository
 import com.lauro.petguardian.data.PhotoAlbumStore
 import com.lauro.petguardian.data.PhotoEntry
 import com.lauro.petguardian.databinding.FragmentPhotoBinding
+import java.io.File
 
 class PhotoFragment : Fragment() {
     private var _binding: FragmentPhotoBinding? = null
     private val binding get() = _binding!!
-    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPhotoBinding.inflate(inflater, container, false)
@@ -30,93 +33,175 @@ class PhotoFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.takePhotoButton.setOnClickListener { requestPhoto() }
         binding.openLatestButton.setOnClickListener {
-            PhotoAlbumStore.all().firstOrNull()?.let(::openDetail)
+            PhotoAlbumStore.all().firstOrNull { it.imagePath.isNotBlank() }?.let(::openDetail)
                 ?: Toast.makeText(requireContext(), getString(R.string.photo_empty), Toast.LENGTH_SHORT).show()
         }
-        binding.latestPhotoCard.setOnClickListener { PhotoAlbumStore.all().firstOrNull()?.let(::openDetail) }
-        binding.todayAlbumCard.setOnClickListener { openAlbumLatest(getString(R.string.photo_album_today)) }
-        binding.weekAlbumCard.setOnClickListener { openAlbumLatest(getString(R.string.photo_album_week)) }
-        binding.eventsAlbumCard.setOnClickListener { openAlbumLatest(getString(R.string.photo_album_events)) }
+        binding.latestPhotoCard.setOnClickListener { PhotoAlbumStore.all().firstOrNull { it.imagePath.isNotBlank() }?.let(::openDetail) }
+        binding.todayAlbumCard.setOnClickListener { openAlbum(getString(R.string.photo_album_today)) }
+        binding.weekAlbumCard.setOnClickListener { openAlbum(getString(R.string.photo_album_week)) }
+        binding.eventsAlbumCard.setOnClickListener { openAlbum(getString(R.string.photo_album_events)) }
+        applyTheme()
         refreshContent()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (_binding != null) {
+            applyTheme()
+            refreshContent()
+        }
     }
 
     private fun requestPhoto() {
         val entry = PhotoAlbumStore.requestPhoto("manual")
+        PhotoAlbumStore.updateStatus(entry.id, "waiting", "Falando com a camera do sistema para buscar a captura agora.")
         refreshContent(entry.id)
         Toast.makeText(requireContext(), getString(R.string.photo_waiting), Toast.LENGTH_SHORT).show()
-        schedulePhotoStages(entry.id)
-    }
 
-    private fun schedulePhotoStages(photoId: String) {
-        handler.postDelayed({
-            PhotoAlbumStore.updateStatus(photoId, "waiting", "Aguardando a camera do sistema responder ao pedido.")
-            refreshContent(photoId)
-        }, 1400)
-        handler.postDelayed({
-            PhotoAlbumStore.updateStatus(photoId, "received", "Previa recebida pelo app. Quando a camera real entrar, a imagem definitiva vira daqui.")
-            refreshContent(photoId)
-        }, 3600)
-        handler.postDelayed({
-            PhotoAlbumStore.updateStatus(photoId, "saved", "Captura guardada no album. Toque para ver o detalhe e a origem da solicitacao.")
-            refreshContent(photoId)
-        }, 5600)
+        binding.takePhotoButton.isEnabled = false
+        binding.openLatestButton.isEnabled = false
+
+        PetGuardianRepository.captureSystemPhoto("manual") { result ->
+            activity?.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                binding.takePhotoButton.isEnabled = true
+
+                result.onSuccess { captured ->
+                    PhotoAlbumStore.attachCapture(
+                        id = entry.id,
+                        status = "saved",
+                        note = "Captura recebida pela camera local e salva no album do app.",
+                        imagePath = captured.localPath,
+                        sourceUrl = captured.sourceUrl
+                    )
+                    refreshContent(entry.id)
+                    Toast.makeText(requireContext(), "Foto recebida e salva.", Toast.LENGTH_SHORT).show()
+                }.onFailure {
+                    PhotoAlbumStore.updateStatus(
+                        entry.id,
+                        "failed",
+                        "Nao foi possivel falar com a camera agora. Verifique se a ESP32 da OV7670 esta ligada na mesma rede."
+                    )
+                    refreshContent(entry.id)
+                    Toast.makeText(requireContext(), "Nao foi possivel buscar a foto da camera.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun refreshContent(highlightId: String? = null) {
         if (_binding == null) return
-        val latest = PhotoAlbumStore.all().firstOrNull()
+        val latest = PhotoAlbumStore.all().firstOrNull { it.imagePath.isNotBlank() } ?: PhotoAlbumStore.all().firstOrNull()
         binding.todayCount.text = PhotoAlbumStore.todayCount().toString()
         binding.weekCount.text = PhotoAlbumStore.weekCount().toString()
         binding.eventsCount.text = PhotoAlbumStore.eventCount().toString()
 
         if (latest == null) {
-            binding.latestAlbumBadge.text = getString(R.string.photo_album_today)
-            binding.latestAlbumBadge.setBackgroundResource(R.drawable.metric_badge_blue)
             binding.photoStatusTitle.text = getString(R.string.photo_pending_title)
             binding.photoStatusBody.text = getString(R.string.photo_pending_body)
             binding.photoCaption.text = getString(R.string.photo_empty)
             binding.openLatestButton.isEnabled = false
-            binding.photoPreview.setImageResource(R.drawable.ic_nav_photo)
-            binding.photoPreview.imageTintList = ContextCompat.getColorStateList(requireContext(), R.color.theme_primary_dark)
+            applyBadge(binding.latestAlbumBadge, getString(R.string.photo_album_today), ThemeManager.current(requireContext()).chip)
+            setPreviewPlaceholder(R.drawable.ic_nav_photo)
             return
         }
 
-        val (badgeDrawable, iconRes) = when (latest.status) {
-            "requested" -> Pair(R.drawable.metric_badge_blue, R.drawable.ic_nav_photo)
-            "waiting" -> Pair(R.drawable.metric_badge_yellow, R.drawable.ic_metric_sync)
-            "received" -> Pair(R.drawable.metric_badge_green, R.drawable.ic_metric_motion)
-            "saved" -> Pair(R.drawable.metric_badge_green, R.drawable.ic_paw)
-            else -> Pair(R.drawable.metric_badge_yellow, R.drawable.ic_metric_gas)
+        val palette = ThemeManager.current(requireContext())
+        val badgeColor = when (latest.status) {
+            "requested" -> palette.accent
+            "waiting" -> palette.chip
+            "received" -> palette.accent
+            "saved" -> palette.primary
+            else -> palette.chip
         }
 
-        binding.latestAlbumBadge.text = latest.album
-        binding.latestAlbumBadge.setBackgroundResource(badgeDrawable)
+        applyBadge(binding.latestAlbumBadge, latest.album, badgeColor)
         binding.photoStatusTitle.text = statusLabel(latest.status)
         binding.photoStatusBody.text = latest.note
         binding.photoCaption.text = UiFormatters.date(latest.requestedAt)
-        binding.openLatestButton.isEnabled = true
-        binding.photoPreview.setImageResource(iconRes)
-        binding.photoPreview.imageTintList = ContextCompat.getColorStateList(requireContext(), R.color.theme_primary_dark)
+        binding.openLatestButton.isEnabled = latest.imagePath.isNotBlank() || latest.status != "failed"
+        showPreview(latest, R.drawable.ic_paw)
         binding.latestPhotoCard.alpha = if (highlightId != null && latest.id == highlightId) 1f else 0.98f
     }
 
-    private fun openAlbumLatest(album: String) {
-        val item = PhotoAlbumStore.all().firstOrNull { it.album == album }
-        if (item == null) {
-            Toast.makeText(requireContext(), getString(R.string.photo_no_item_in_album), Toast.LENGTH_SHORT).show()
-            return
+    private fun applyTheme() {
+        val palette = ThemeManager.current(requireContext())
+        stylePrimaryButton(binding.takePhotoButton)
+        styleSecondaryButton(binding.openLatestButton)
+        styleAlbumCard(binding.todayAlbumCard, palette.primary)
+        styleAlbumCard(binding.weekAlbumCard, palette.accent)
+        styleAlbumCard(binding.eventsAlbumCard, palette.chip)
+        applyBadge(binding.latestAlbumBadge, binding.latestAlbumBadge.text.toString(), palette.chip)
+    }
+
+    private fun stylePrimaryButton(button: com.google.android.material.button.MaterialButton) {
+        val palette = ThemeManager.current(requireContext())
+        button.backgroundTintList = ColorStateList.valueOf(palette.primary)
+        button.setTextColor(palette.text)
+        button.strokeColor = ColorStateList.valueOf(palette.primaryDark)
+        button.strokeWidth = 2
+    }
+
+    private fun styleSecondaryButton(button: com.google.android.material.button.MaterialButton) {
+        val palette = ThemeManager.current(requireContext())
+        button.backgroundTintList = ColorStateList.valueOf(palette.surface)
+        button.setTextColor(palette.text)
+        button.strokeColor = ColorStateList.valueOf(palette.primaryDark)
+        button.strokeWidth = 2
+    }
+
+    private fun styleAlbumCard(card: com.google.android.material.card.MaterialCardView, accentColor: Int) {
+        val palette = ThemeManager.current(requireContext())
+        card.setCardBackgroundColor(palette.surface)
+        card.strokeColor = accentColor
+        card.strokeWidth = 2
+    }
+
+    private fun applyBadge(view: TextView, text: String, fillColor: Int) {
+        val palette = ThemeManager.current(requireContext())
+        view.text = text
+        view.setTextColor(palette.text)
+        view.background = GradientDrawable().apply {
+            cornerRadius = 999f
+            setColor(fillColor)
+            setStroke(1, palette.primaryDark)
         }
-        openDetail(item)
+    }
+
+    private fun showPreview(entry: PhotoEntry, fallbackIcon: Int) {
+        val imageFile = if (entry.imagePath.isBlank()) null else File(entry.imagePath)
+        val bitmap = imageFile?.takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.absolutePath) }
+        if (bitmap != null) {
+            binding.photoPreview.setImageBitmap(bitmap)
+            binding.photoPreview.imageTintList = null
+        } else {
+            setPreviewPlaceholder(fallbackIcon)
+        }
+    }
+
+    private fun setPreviewPlaceholder(iconRes: Int) {
+        val palette = ThemeManager.current(requireContext())
+        binding.photoPreview.setImageResource(iconRes)
+        binding.photoPreview.imageTintList = ColorStateList.valueOf(palette.primaryDark)
+    }
+
+    private fun openAlbum(album: String) {
+        startActivity(
+            Intent(requireContext(), PhotoAlbumActivity::class.java)
+                .putExtra("album", album)
+        )
     }
 
     private fun openDetail(entry: PhotoEntry) {
         startActivity(
-            Intent(requireContext(), PhotoDetailActivity::class.java)
+            Intent(requireContext(), com.lauro.petguardian.PhotoDetailActivity::class.java)
                 .putExtra("album", entry.album)
                 .putExtra("status", statusLabel(entry.status))
                 .putExtra("date", UiFormatters.date(entry.requestedAt))
                 .putExtra("reason", reasonLabel(entry.reason))
                 .putExtra("note", entry.note)
+                .putExtra("imagePath", entry.imagePath)
+                .putExtra("sourceUrl", entry.sourceUrl)
         )
     }
 
@@ -135,7 +220,6 @@ class PhotoFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        handler.removeCallbacksAndMessages(null)
         super.onDestroyView()
         _binding = null
     }

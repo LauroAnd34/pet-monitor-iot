@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -127,6 +127,25 @@
           <div><span class="tiny-label">Alerta</span><strong id="alertState">--</strong></div>
         </div>
       </article>
+    </section>
+
+    <section class="panel control-panel">
+      <div class="section-head">
+        <div>
+          <span class="micro-label">Comandos remotos</span>
+          <h2>Cuidados a um toque</h2>
+        </div>
+        <span class="chip" id="commandStatus">Pronto para enviar</span>
+      </div>
+      <p class="control-copy">Envie acoes rapidas para o hub mesmo fora de casa. O ESP32 busca o proximo comando na nuvem e executa assim que estiver online.</p>
+      <div class="control-grid">
+        <button class="action-button control-button is-primary" data-command="feed_now" type="button">Liberar racao</button>
+        <button class="action-button control-button" data-command="pump_run" type="button">Liberar agua</button>
+        <button class="action-button control-button" data-command="lamp_on" type="button">Ligar lampada</button>
+        <button class="action-button control-button" data-command="lamp_off" type="button">Desligar lampada</button>
+        <button class="action-button control-button" data-command="lamp_auto" type="button">Lampada automatica</button>
+        <button class="action-button control-button" data-command="pump_auto" type="button">Bomba automatica</button>
+      </div>
     </section>
 
     <section class="details-layout">

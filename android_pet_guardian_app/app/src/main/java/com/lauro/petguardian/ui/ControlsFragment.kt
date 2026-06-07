@@ -1,6 +1,8 @@
 package com.lauro.petguardian.ui
 
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -12,6 +14,7 @@ import androidx.fragment.app.Fragment
 import com.lauro.petguardian.AutomationActivity
 import com.lauro.petguardian.MainActivity
 import com.lauro.petguardian.R
+import com.lauro.petguardian.ThemeManager
 import com.lauro.petguardian.data.PetGuardianRepository
 import com.lauro.petguardian.databinding.FragmentControlsBinding
 
@@ -36,6 +39,12 @@ class ControlsFragment : Fragment() {
         binding.openAutomationButton.setOnClickListener {
             startActivity(Intent(requireContext(), AutomationActivity::class.java))
         }
+        applyTheme()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (_binding != null) applyTheme()
     }
 
     private fun wireCommand(view: View, command: String) {
@@ -45,15 +54,15 @@ class ControlsFragment : Fragment() {
     private fun sendCommand(command: String) {
         handler.removeCallbacksAndMessages(null)
         setBusy(true)
-        showFeedback(getString(R.string.command_status_sending), getString(R.string.command_sending), getString(R.string.command_body_sending), R.drawable.metric_badge_blue)
+        showFeedback(getString(R.string.command_status_sending), getString(R.string.command_sending), getString(R.string.command_body_sending), ThemeManager.current(requireContext()).accent)
 
         PetGuardianRepository.sendCommand(command) { result ->
             activity?.runOnUiThread {
                 result.onSuccess {
-                    showFeedback(getString(R.string.command_status_queued), getString(R.string.control_ready), getString(R.string.command_body_queued), R.drawable.metric_badge_yellow)
+                    showFeedback(getString(R.string.command_status_queued), getString(R.string.control_ready), getString(R.string.command_body_queued), ThemeManager.current(requireContext()).chip)
                     handler.postDelayed({
                         if (_binding == null) return@postDelayed
-                        showFeedback(getString(R.string.command_status_running), getString(R.string.command_status_running), getString(R.string.command_body_running), R.drawable.metric_badge_blue)
+                        showFeedback(getString(R.string.command_status_running), getString(R.string.command_status_running), getString(R.string.command_body_running), ThemeManager.current(requireContext()).accent)
                     }, 900)
                     handler.postDelayed({
                         if (_binding == null) return@postDelayed
@@ -67,13 +76,13 @@ class ControlsFragment : Fragment() {
                             "pump_auto" -> getString(R.string.pump_auto_success)
                             else -> it
                         }
-                        showFeedback(getString(R.string.command_status_success), message, getString(R.string.command_body_success), R.drawable.metric_badge_green)
+                        showFeedback(getString(R.string.command_status_success), message, getString(R.string.command_body_success), ThemeManager.current(requireContext()).primary)
                         (activity as? MainActivity)?.updateStatus(getString(R.string.status_loading), false)
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }, 2200)
                 }.onFailure {
                     setBusy(false)
-                    showFeedback(getString(R.string.command_status_error), getString(R.string.command_error), getString(R.string.command_body_error), R.drawable.metric_badge_yellow)
+                    showFeedback(getString(R.string.command_status_error), getString(R.string.command_error), getString(R.string.command_body_error), ThemeManager.current(requireContext()).chip)
                     (activity as? MainActivity)?.updateStatus(getString(R.string.status_offline), false)
                     Toast.makeText(requireContext(), getString(R.string.command_error), Toast.LENGTH_LONG).show()
                 }
@@ -81,13 +90,48 @@ class ControlsFragment : Fragment() {
         }
     }
 
-    private fun showFeedback(badge: String, title: String, body: String, badgeDrawable: Int) {
+    private fun showFeedback(badge: String, title: String, body: String, badgeFill: Int) {
         binding.feedbackPanel.visibility = View.VISIBLE
         binding.feedbackBadge.text = badge
-        binding.feedbackBadge.setBackgroundResource(badgeDrawable)
-        binding.feedbackBadge.backgroundTintList = null
+        val palette = ThemeManager.current(requireContext())
+        binding.feedbackBadge.background = GradientDrawable().apply {
+            cornerRadius = 999f
+            setColor(badgeFill)
+            setStroke(1, palette.primaryDark)
+        }
         binding.feedbackText.text = title
         binding.feedbackBody.text = body
+        binding.feedbackPanel.background = GradientDrawable().apply {
+            cornerRadius = 28f
+            setColor(palette.accent)
+            setStroke(2, palette.primaryDark)
+        }
+    }
+
+    private fun applyTheme() {
+        stylePrimaryButton(binding.feedButton)
+        stylePrimaryButton(binding.waterButton)
+        stylePrimaryButton(binding.lampOnButton)
+        styleSecondaryButton(binding.lampOffButton)
+        styleSecondaryButton(binding.lampAutoButton)
+        styleSecondaryButton(binding.pumpAutoButton)
+        styleSecondaryButton(binding.openAutomationButton)
+    }
+
+    private fun stylePrimaryButton(button: com.google.android.material.button.MaterialButton) {
+        val palette = ThemeManager.current(requireContext())
+        button.backgroundTintList = ColorStateList.valueOf(palette.primary)
+        button.setTextColor(palette.text)
+        button.strokeColor = ColorStateList.valueOf(palette.primaryDark)
+        button.strokeWidth = 2
+    }
+
+    private fun styleSecondaryButton(button: com.google.android.material.button.MaterialButton) {
+        val palette = ThemeManager.current(requireContext())
+        button.backgroundTintList = ColorStateList.valueOf(palette.surface)
+        button.setTextColor(palette.text)
+        button.strokeColor = ColorStateList.valueOf(palette.primaryDark)
+        button.strokeWidth = 2
     }
 
     private fun setBusy(enabled: Boolean) {

@@ -1,28 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/avatarEditorRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:padding="20dp"
+    android:background="@android:color/transparent">
 
     <TextView
+        android:id="@+id/avatarEditorTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Ajustar foto"
-        android:textColor="@color/theme_primary_text"
+        android:textColor="@android:color/black"
         android:textSize="20sp"
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/avatarEditorSubtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Aproxime ou afaste para decidir como a foto vai aparecer no app."
-        android:textColor="@color/theme_secondary_text"
+        android:text="@string/photo_editor_preview_hint"
+        android:textColor="@android:color/darker_gray"
         android:textSize="14sp" />
 
     <FrameLayout
+        android:id="@+id/avatarEditorFrame"
         android:layout_width="220dp"
         android:layout_height="220dp"
         android:layout_gravity="center_horizontal"
@@ -30,14 +35,24 @@
         android:background="@drawable/avatar_bubble"
         android:padding="6dp">
 
-        <androidx.appcompat.widget.AppCompatImageView
+        <com.lauro.petguardian.ui.DraggableCropImageView
             android:id="@+id/avatarEditorPreview"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@drawable/avatar_clip"
             android:clipToOutline="true"
-            android:scaleType="centerCrop" />
+            android:scaleType="matrix" />
     </FrameLayout>
+
+    <TextView
+        android:id="@+id/avatarEditorHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:text="@string/photo_editor_drag_hint"
+        android:textColor="@android:color/darker_gray"
+        android:textSize="12sp" />
 
     <com.google.android.material.slider.Slider
         android:id="@+id/avatarZoomSlider"
@@ -58,10 +73,11 @@
         android:orientation="horizontal">
 
         <TextView
+            android:id="@+id/avatarZoomMinLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Mais aberta"
-            android:textColor="@color/theme_secondary_text"
+            android:textColor="@android:color/darker_gray"
             android:textSize="12sp" />
 
         <View
@@ -70,11 +86,11 @@
             android:layout_weight="1" />
 
         <TextView
+            android:id="@+id/avatarZoomMaxLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Mais proxima"
-            android:textColor="@color/theme_secondary_text"
+            android:text="Mais próxima"
+            android:textColor="@android:color/darker_gray"
             android:textSize="12sp" />
     </LinearLayout>
 </LinearLayout>
-

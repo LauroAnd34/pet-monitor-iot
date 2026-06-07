@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -16,11 +17,11 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.widget.AppCompatImageView
 import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
 import com.lauro.petguardian.ProfileManager
 import com.lauro.petguardian.R
@@ -29,7 +30,6 @@ import com.lauro.petguardian.databinding.FragmentSettingsBinding
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.max
-import kotlin.math.min
 
 class SettingsFragment : Fragment() {
     companion object {
@@ -106,6 +106,11 @@ class SettingsFragment : Fragment() {
         refreshThemeState()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (_binding != null) refreshThemeState()
+    }
+
     fun refreshThemeState() {
         isApplyingState = true
         val current = ThemeManager.current(requireContext()).id
@@ -133,7 +138,68 @@ class SettingsFragment : Fragment() {
         highlightSelection(binding.startHistory, ThemeManager.startTab(requireContext()) == "history")
         highlightSelection(binding.startControls, ThemeManager.startTab(requireContext()) == "controls")
         if (hasAvatar) showAvatarPreview() else showAvatarPlaceholder()
+        applyActionButtonsTheme()
+        applySwitchTheme()
         isApplyingState = false
+    }
+
+    private fun applyActionButtonsTheme() {
+        stylePrimaryButton(binding.chooseAvatarButton)
+        styleSecondaryButton(binding.removeAvatarButton)
+        styleSecondaryButton(binding.saveNamesButton)
+    }
+
+    private fun applySwitchTheme() {
+        val palette = ThemeManager.current(requireContext())
+        val thumbTint = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_checked),
+                intArrayOf(-android.R.attr.state_checked)
+            ),
+            intArrayOf(
+                palette.primaryDark,
+                palette.surface
+            )
+        )
+        val trackTint = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_checked),
+                intArrayOf(-android.R.attr.state_checked)
+            ),
+            intArrayOf(
+                palette.primary,
+                palette.border
+            )
+        )
+        listOf(
+            binding.animationSwitch,
+            binding.autoRefreshSwitch,
+            binding.relativeTimeSwitch,
+            binding.showGasSwitch,
+            binding.showSyncSwitch
+        ).forEach { styleSwitch(it, thumbTint, trackTint) }
+    }
+
+    private fun styleSwitch(switch: MaterialSwitch, thumbTint: ColorStateList, trackTint: ColorStateList) {
+        switch.thumbTintList = thumbTint
+        switch.trackTintList = trackTint
+        switch.thumbIconTintList = ColorStateList.valueOf(Color.WHITE)
+    }
+
+    private fun stylePrimaryButton(button: MaterialButton) {
+        val palette = ThemeManager.current(requireContext())
+        button.backgroundTintList = ColorStateList.valueOf(palette.primary)
+        button.setTextColor(palette.text)
+        button.strokeColor = ColorStateList.valueOf(palette.primaryDark)
+        button.strokeWidth = 2
+    }
+
+    private fun styleSecondaryButton(button: MaterialButton) {
+        val palette = ThemeManager.current(requireContext())
+        button.backgroundTintList = ColorStateList.valueOf(palette.surface)
+        button.setTextColor(palette.text)
+        button.strokeColor = ColorStateList.valueOf(palette.primaryDark)
+        button.strokeWidth = 2
     }
 
     private fun setTextScale(value: String) {
@@ -162,35 +228,57 @@ class SettingsFragment : Fragment() {
     private fun showAvatarEditor(uri: Uri) {
         val sourceBitmap = decodeBitmapFromUri(uri, 1600)
         if (sourceBitmap == null) {
-            Toast.makeText(requireContext(), "NÃ£o foi possÃ­vel abrir a foto.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Não foi possível abrir a foto.", Toast.LENGTH_SHORT).show()
             return
         }
 
+        val palette = ThemeManager.current(requireContext())
         val dialogView = layoutInflater.inflate(R.layout.dialog_avatar_editor, null)
-        val previewImage = dialogView.findViewById<AppCompatImageView>(R.id.avatarEditorPreview)
+        val dialogRoot = dialogView.findViewById<View>(R.id.avatarEditorRoot)
+        val title = dialogView.findViewById<TextView>(R.id.avatarEditorTitle)
+        val subtitle = dialogView.findViewById<TextView>(R.id.avatarEditorSubtitle)
+        val frame = dialogView.findViewById<View>(R.id.avatarEditorFrame)
+        val hint = dialogView.findViewById<TextView>(R.id.avatarEditorHint)
+        val previewImage = dialogView.findViewById<DraggableCropImageView>(R.id.avatarEditorPreview)
         val zoomSlider = dialogView.findViewById<Slider>(R.id.avatarZoomSlider)
-        var currentZoom = zoomSlider.value
+        val zoomMin = dialogView.findViewById<TextView>(R.id.avatarZoomMinLabel)
+        val zoomMax = dialogView.findViewById<TextView>(R.id.avatarZoomMaxLabel)
 
-        fun renderPreview() {
-            previewImage.setImageBitmap(buildAvatarBitmap(sourceBitmap, currentZoom, 420))
-            previewImage.imageTintList = null
-            previewImage.clearColorFilter()
-            previewImage.scaleType = ImageView.ScaleType.CENTER_CROP
+        dialogRoot.background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 36f
+            setColor(palette.surface)
+            setStroke(2, palette.border)
         }
+        title.setTextColor(palette.text)
+        subtitle.setTextColor(palette.softText)
+        hint.setTextColor(palette.softText)
+        zoomMin.setTextColor(palette.softText)
+        zoomMax.setTextColor(palette.softText)
+        frame.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(palette.chip)
+            setStroke(3, palette.primaryDark)
+        }
+        zoomSlider.thumbTintList = ColorStateList.valueOf(palette.primaryDark)
+        zoomSlider.trackActiveTintList = ColorStateList.valueOf(palette.primaryDark)
+        zoomSlider.trackInactiveTintList = ColorStateList.valueOf(palette.border)
+        zoomSlider.haloTintList = ColorStateList.valueOf(palette.primary)
 
-        renderPreview()
+        previewImage.setEditorBitmap(sourceBitmap)
+        previewImage.setZoomValue(zoomSlider.value)
+
         zoomSlider.addOnChangeListener { _, value, _ ->
-            currentZoom = value
-            renderPreview()
+            previewImage.setZoomValue(value)
         }
 
-        MaterialAlertDialogBuilder(requireContext())
+        val dialog = MaterialAlertDialogBuilder(requireContext())
             .setView(dialogView)
             .setNegativeButton("Cancelar", null)
             .setPositiveButton("Usar foto") { _, _ ->
-                val avatarBitmap = buildAvatarBitmap(sourceBitmap, currentZoom, AVATAR_OUTPUT_SIZE)
-                if (!saveAvatarBitmap(avatarBitmap)) {
-                    Toast.makeText(requireContext(), "NÃ£o foi possÃ­vel salvar a foto.", Toast.LENGTH_SHORT).show()
+                val avatarBitmap = previewImage.exportCroppedBitmap(AVATAR_OUTPUT_SIZE)
+                if (avatarBitmap == null || !saveAvatarBitmap(avatarBitmap)) {
+                    Toast.makeText(requireContext(), "Não foi possível salvar a foto.", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
                 showAvatarPreview()
@@ -198,7 +286,27 @@ class SettingsFragment : Fragment() {
                 (activity as? SettingsHost)?.onAvatarChanged()
                 refreshThemeState()
             }
-            .show()
+            .create()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.show()
+        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)?.apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 999f
+                setColor(palette.primary)
+                setStroke(2, palette.primaryDark)
+            }
+            setTextColor(palette.text)
+        }
+        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE)?.apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 999f
+                setColor(palette.surface)
+                setStroke(2, palette.primaryDark)
+            }
+            setTextColor(palette.text)
+        }
     }
 
     private fun saveAvatarBitmap(bitmap: Bitmap): Boolean {
@@ -210,16 +318,6 @@ class SettingsFragment : Fragment() {
         }
         ThemeManager.saveAvatarPath(requireContext(), avatarFile.absolutePath)
         return avatarFile.exists() && avatarFile.length() > 0L
-    }
-
-    private fun buildAvatarBitmap(source: Bitmap, zoom: Float, targetSize: Int): Bitmap {
-        val minSide = min(source.width, source.height).toFloat()
-        val cropSide = (minSide / zoom).coerceAtLeast(120f)
-        val cropSideInt = cropSide.toInt().coerceAtMost(min(source.width, source.height))
-        val left = ((source.width - cropSideInt) / 2).coerceAtLeast(0)
-        val top = ((source.height - cropSideInt) / 2).coerceAtLeast(0)
-        val cropped = Bitmap.createBitmap(source, left, top, cropSideInt, cropSideInt)
-        return Bitmap.createScaledBitmap(cropped, targetSize, targetSize, true)
     }
 
     private fun decodeBitmapFromUri(uri: Uri, maxSide: Int): Bitmap? {
