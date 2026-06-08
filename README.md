@@ -9,7 +9,6 @@ O Pet Guardian foi pensado para acompanhar alimentação, água, conforto ambien
 O sistema combina:
 
 - `ESP32 principal` para leitura de sensores e acionamento de bomba, motor de ração e lâmpada
-- `Pico W / BitDogLab` como matriz de LEDs para iluminação auxiliar
 - `ESP32 + OV7670 sem FIFO` como nó dedicado de câmera para capturas futuras
 - `Supabase` para ingestão de telemetria, comandos e histórico
 - `Dashboard web/PWA` para acompanhamento remoto no navegador
@@ -129,7 +128,6 @@ Use URLs, tokens e IPs do seu próprio ambiente.
 ## Tecnologias utilizadas
 
 - `ESP32`
-- `Raspberry Pi Pico W / BitDogLab`
 - `Arduino IDE`
 - `Kotlin / Android`
 - `Supabase`
