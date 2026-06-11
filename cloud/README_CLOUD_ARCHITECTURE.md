@@ -143,6 +143,48 @@ Se quiser, `Netlify` tambem funciona muito bem para essa pasta.
 3. o app chama `dashboard-data`
 4. o usuario ve o sistema no celular em tempo real
 
+## Fluxo de fotos da OV7670
+
+A ESP32 comum com OV7670 sem FIFO usa uma fila separada da ESP32 dos
+sensores. Assim, o hub de sensores nunca consome pedidos destinados a camera.
+
+1. O app envia `capture_photo` para `control-device`.
+2. A ESP32 da OV7670 consulta `poll-camera-command` com `x-device-token`.
+3. A camera captura o BMP e envia os bytes para `upload-photo`.
+4. O Supabase grava o arquivo no bucket privado `pet-photos` e os metadados
+   na tabela `pet_photos`.
+5. O app consulta `photos` com `x-dashboard-token` e recebe URLs assinadas
+   validas por 15 minutos.
+
+### Endpoints da camera
+
+```text
+GET  /functions/v1/poll-camera-command
+POST /functions/v1/upload-photo
+```
+
+Cabecalhos usados pela camera:
+
+```text
+x-device-token: TOKEN_DO_ESP32
+x-command-id: ID_RECEBIDO_NO_POLL
+x-photo-reason: manual
+Content-Type: image/bmp
+```
+
+O corpo do `POST upload-photo` deve conter diretamente os bytes do arquivo
+BMP. O limite atual e `300000` bytes.
+
+### Endpoint do app
+
+```text
+GET /functions/v1/photos?limit=40
+x-dashboard-token: TOKEN_PUBLICO_DO_APP
+```
+
+O bucket e privado. O app recebe uma `downloadUrl` assinada em vez de acesso
+publico permanente aos arquivos.
+
 ## Observacao importante
 
 Nesta etapa, o app esta focado em acompanhamento remoto. O caminho para comandos remotos completos existe, mas ainda faltaria o `ESP32` buscar comandos pendentes da nuvem para executar bomba, comedouro ou lampada fora da rede local.

@@ -6,21 +6,22 @@ Edite `android_pet_guardian_app/app/src/main/java/com/lauro/petguardian/AppConfi
 
 - `DASHBOARD_API_URL`: URL da funcao `dashboard-data`.
 - `COMMAND_API_URL`: URL da funcao `control-device`.
+- `PHOTOS_API_URL`: URL da funcao `photos`.
 - `DASHBOARD_TOKEN`: token privado do dashboard.
-- `CAMERA_NODE_URL`: endereco local da ESP32 da camera, por exemplo `http://192.168.1.50`.
-
 Ao abrir o app pela primeira vez, permita notificacoes. O Android executa o monitor em segundo plano
 periodicamente. Com o app aberto, movimento e temperatura sao verificados com mais frequencia.
 
 ## Hub ESP32
 
-Edite `src/esp32_pet_hub_dual/esp32_pet_hub_dual.ino`:
+O hub de sensores nao precisa conhecer o IP da camera. A camera publica diretamente na nuvem e no app.
 
-- `CAMERA_CAPTURE_URL`: endereco completo da captura da camera, por exemplo
-  `http://192.168.1.50/capture.bmp?reason=motion`.
+## ESP32 com OV7670
 
-O hub chama essa URL quando o PIR muda de sem movimento para movimento. Existe um intervalo de cinco
-minutos entre capturas para evitar excesso de fotos.
+Configure no sketch:
+
+- Wi-Fi local.
+- `CLOUD_DEVICE_TOKEN`.
+- URLs das funcoes `poll-camera-command` e `upload-photo`.
 
 ## Recursos no app
 

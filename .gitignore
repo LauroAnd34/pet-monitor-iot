@@ -4,6 +4,11 @@ android_pet_guardian_app/.gradle-home/
 android_pet_guardian_app/app/build/
 android_pet_guardian_app/build/
 android_pet_guardian_app/local.properties
+*.apk
+
+# Arduino / sistema operacional
+**/build/
+*.DS_Store
 
 # Arquivos locais de deploy
 .vercel/
