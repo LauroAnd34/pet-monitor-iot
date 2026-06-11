@@ -5,6 +5,8 @@ import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -26,6 +28,8 @@ import java.io.File
 class PhotoFragment : Fragment() {
     private var _binding: FragmentPhotoBinding? = null
     private val binding get() = _binding!!
+    private val handler = Handler(Looper.getMainLooper())
+    private var syncAttempts = 0
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPhotoBinding.inflate(inflater, container, false)
@@ -55,6 +59,7 @@ class PhotoFragment : Fragment() {
         applyTheme()
         refreshContent()
         refreshAutomation()
+        syncPhotos()
     }
 
     override fun onResume() {
@@ -63,6 +68,7 @@ class PhotoFragment : Fragment() {
             applyTheme()
             refreshContent()
             refreshAutomation()
+            syncPhotos()
         }
     }
 
@@ -75,29 +81,45 @@ class PhotoFragment : Fragment() {
         binding.takePhotoButton.isEnabled = false
         binding.openLatestButton.isEnabled = false
 
-        PetGuardianRepository.captureSystemPhoto("manual") { result ->
+        PetGuardianRepository.sendCommand("capture_photo") { result ->
             activity?.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
                 binding.takePhotoButton.isEnabled = true
-
-                result.onSuccess { captured ->
-                    PhotoAlbumStore.attachCapture(
-                        id = entry.id,
-                        status = "saved",
-                        note = "Captura recebida pela camera local e salva no album do app.",
-                        imagePath = captured.localPath,
-                        sourceUrl = captured.sourceUrl
-                    )
+                result.onSuccess {
+                    PhotoAlbumStore.updateStatus(entry.id, "waiting", "Pedido enviado. A camera publicara a foto diretamente no app.")
                     refreshContent(entry.id)
-                    Toast.makeText(requireContext(), "Foto recebida e salva.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Pedido de foto enviado.", Toast.LENGTH_SHORT).show()
+                    syncAttempts = 0
+                    schedulePhotoSync()
                 }.onFailure {
                     PhotoAlbumStore.updateStatus(
                         entry.id,
                         "failed",
-                        "Nao foi possivel falar com a camera agora. Verifique se a ESP32 da OV7670 esta ligada na mesma rede."
+                        "Nao foi possivel enviar o pedido de foto pela nuvem."
                     )
                     refreshContent(entry.id)
-                    Toast.makeText(requireContext(), "Nao foi possivel buscar a foto da camera.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Nao foi possivel solicitar a foto.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun schedulePhotoSync() {
+        handler.postDelayed({
+            if (_binding == null) return@postDelayed
+            syncPhotos()
+            syncAttempts++
+            if (syncAttempts < 12) schedulePhotoSync()
+        }, 3000)
+    }
+
+    private fun syncPhotos() {
+        PetGuardianRepository.syncCloudPhotos { result ->
+            activity?.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                if (result.getOrDefault(0) > 0) {
+                    refreshContent()
+                    Toast.makeText(requireContext(), "Nova foto recebida.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -145,10 +167,10 @@ class PhotoFragment : Fragment() {
     private fun refreshAutomation() {
         binding.autoCaptureSwitch.isChecked = PhotoAutomationPreferences.autoCaptureEnabled(requireContext())
         binding.notificationSwitch.isChecked = PhotoAutomationPreferences.notificationsEnabled(requireContext())
-        binding.cleanupButton.text = getString(R.string.cleanup_period, PhotoAutomationPreferences.cleanupDays(requireContext()))
+        val cleanupDays = PhotoAutomationPreferences.cleanupDays(requireContext())
+        binding.cleanupButton.text = if (cleanupDays <= 0) getString(R.string.cleanup_disabled) else getString(R.string.cleanup_period, cleanupDays)
         binding.deviceStatusText.text = getString(R.string.device_status_checking)
         kotlin.concurrent.thread {
-            val cameraOnline = PetGuardianRepository.cameraOnline()
             PetGuardianRepository.fetchDashboard(1) { result ->
                 activity?.runOnUiThread {
                     if (_binding == null) return@runOnUiThread
@@ -157,7 +179,7 @@ class PhotoFragment : Fragment() {
                         R.string.device_status_format,
                         if (hubOnline) "online" else "offline",
                         if (hubOnline) "online" else "offline",
-                        if (cameraOnline) "online" else "offline"
+                        getString(R.string.device_status_cloud)
                     )
                 }
             }
@@ -165,8 +187,8 @@ class PhotoFragment : Fragment() {
     }
 
     private fun chooseCleanupPeriod() {
-        val values = intArrayOf(7, 30, 90, 365)
-        val labels = values.map { getString(R.string.cleanup_period, it) }.toTypedArray()
+        val values = intArrayOf(0, 7, 30, 90, 365)
+        val labels = values.map { if (it == 0) getString(R.string.cleanup_disabled) else getString(R.string.cleanup_period, it) }.toTypedArray()
         com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.cleanup_title)
             .setItems(labels) { _, which ->
@@ -263,6 +285,7 @@ class PhotoFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        handler.removeCallbacksAndMessages(null)
         super.onDestroyView()
         _binding = null
     }

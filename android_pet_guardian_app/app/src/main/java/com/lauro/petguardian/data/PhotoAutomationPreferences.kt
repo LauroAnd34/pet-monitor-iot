@@ -13,7 +13,7 @@ object PhotoAutomationPreferences {
 
     fun autoCaptureEnabled(context: Context) = prefs(context).getBoolean(AUTO_CAPTURE, true)
     fun notificationsEnabled(context: Context) = prefs(context).getBoolean(NOTIFICATIONS, true)
-    fun cleanupDays(context: Context) = prefs(context).getInt(CLEANUP_DAYS, 30)
+    fun cleanupDays(context: Context) = prefs(context).getInt(CLEANUP_DAYS, 0)
     fun lastMotionCapture(context: Context) = prefs(context).getLong(LAST_MOTION_CAPTURE, 0L)
 
     fun setAutoCapture(context: Context, enabled: Boolean) = prefs(context).edit().putBoolean(AUTO_CAPTURE, enabled).apply()

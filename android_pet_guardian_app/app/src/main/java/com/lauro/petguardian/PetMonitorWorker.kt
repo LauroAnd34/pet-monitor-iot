@@ -14,6 +14,7 @@ class PetMonitorWorker(context: Context, params: WorkerParameters) : CoroutineWo
             val payload = PetGuardianRepository.fetchDashboardSync(6)
             val snapshot = payload.snapshot
             PhotoAlbumStore.cleanupOldPhotos(PhotoAutomationPreferences.cleanupDays(applicationContext))
+            PetGuardianRepository.syncCloudPhotosSync()
             PhotoAutomationCoordinator.handleMotion(applicationContext, snapshot.motionDetected)
             PhotoAutomationCoordinator.handleTemperature(applicationContext, snapshot.temperatureC)
 
@@ -23,9 +24,6 @@ class PetMonitorWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 }
                 if (snapshot.alertText.isNotBlank()) {
                     NotificationHelper.notifyAlertIfNew(applicationContext, "Alerta do pet", snapshot.alertText)
-                }
-                if (!PetGuardianRepository.cameraOnline()) {
-                    NotificationHelper.notifyAlertIfNew(applicationContext, "Camera offline", "A camera nao respondeu na rede local.")
                 }
             }
             Result.success()

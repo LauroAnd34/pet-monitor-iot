@@ -233,6 +233,8 @@
   <string name="auto_motion_photos">Fotos automáticas por movimento e temperatura</string>
   <string name="android_notifications">Notificações normais do Android</string>
   <string name="cleanup_period">Limpeza automática: %1$d dias</string>
+  <string name="cleanup_disabled">Limpeza automática desativada</string>
+  <string name="device_status_cloud">via nuvem</string>
   <string name="cleanup_title">Manter fotos por quanto tempo?</string>
   <string name="cleanup_done">%1$d fotos antigas removidas.</string>
   <string name="timeline_title">Linha do tempo</string>
