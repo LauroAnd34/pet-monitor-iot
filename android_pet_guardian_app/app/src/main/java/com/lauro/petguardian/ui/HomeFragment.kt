@@ -16,6 +16,7 @@ import androidx.fragment.app.Fragment
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.lauro.petguardian.MainActivity
 import com.lauro.petguardian.NotificationHelper
+import com.lauro.petguardian.PhotoAutomationCoordinator
 import com.lauro.petguardian.R
 import com.lauro.petguardian.ThemeManager
 import com.lauro.petguardian.data.PetGuardianRepository
@@ -186,6 +187,14 @@ class HomeFragment : Fragment() {
 
                     if (!offline && snapshot.alertText.isNotBlank()) {
                         NotificationHelper.notifyAlertIfNew(requireContext(), getString(R.string.health_attention), snapshot.alertText)
+                    }
+                    if (!offline && snapshot.motionDetected) {
+                        val context = requireContext().applicationContext
+                        kotlin.concurrent.thread { PhotoAutomationCoordinator.handleMotion(context, true) }
+                    }
+                    if (!offline && (snapshot.temperatureC ?: 0.0) >= 31.0) {
+                        val context = requireContext().applicationContext
+                        kotlin.concurrent.thread { PhotoAutomationCoordinator.handleTemperature(context, snapshot.temperatureC) }
                     }
 
                     val statusText = when {

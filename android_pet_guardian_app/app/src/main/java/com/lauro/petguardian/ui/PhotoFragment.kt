@@ -12,11 +12,14 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.lauro.petguardian.PhotoAlbumActivity
+import com.lauro.petguardian.DailyComparisonActivity
+import com.lauro.petguardian.PetTimelineActivity
 import com.lauro.petguardian.R
 import com.lauro.petguardian.ThemeManager
 import com.lauro.petguardian.data.PetGuardianRepository
 import com.lauro.petguardian.data.PhotoAlbumStore
 import com.lauro.petguardian.data.PhotoEntry
+import com.lauro.petguardian.data.PhotoAutomationPreferences
 import com.lauro.petguardian.databinding.FragmentPhotoBinding
 import java.io.File
 
@@ -40,8 +43,18 @@ class PhotoFragment : Fragment() {
         binding.todayAlbumCard.setOnClickListener { openAlbum(getString(R.string.photo_album_today)) }
         binding.weekAlbumCard.setOnClickListener { openAlbum(getString(R.string.photo_album_week)) }
         binding.eventsAlbumCard.setOnClickListener { openAlbum(getString(R.string.photo_album_events)) }
+        binding.autoCaptureSwitch.setOnCheckedChangeListener { _, checked ->
+            PhotoAutomationPreferences.setAutoCapture(requireContext(), checked)
+        }
+        binding.notificationSwitch.setOnCheckedChangeListener { _, checked ->
+            PhotoAutomationPreferences.setNotifications(requireContext(), checked)
+        }
+        binding.cleanupButton.setOnClickListener { chooseCleanupPeriod() }
+        binding.timelineButton.setOnClickListener { startActivity(Intent(requireContext(), PetTimelineActivity::class.java)) }
+        binding.comparisonButton.setOnClickListener { startActivity(Intent(requireContext(), DailyComparisonActivity::class.java)) }
         applyTheme()
         refreshContent()
+        refreshAutomation()
     }
 
     override fun onResume() {
@@ -49,6 +62,7 @@ class PhotoFragment : Fragment() {
         if (_binding != null) {
             applyTheme()
             refreshContent()
+            refreshAutomation()
         }
     }
 
@@ -117,11 +131,52 @@ class PhotoFragment : Fragment() {
 
         applyBadge(binding.latestAlbumBadge, latest.album, badgeColor)
         binding.photoStatusTitle.text = statusLabel(latest.status)
-        binding.photoStatusBody.text = latest.note
+        binding.photoStatusBody.text = if (latest.imagePath.isNotBlank()) {
+            getString(R.string.photo_latest_ready)
+        } else {
+            latest.note
+        }
         binding.photoCaption.text = UiFormatters.date(latest.requestedAt)
         binding.openLatestButton.isEnabled = latest.imagePath.isNotBlank() || latest.status != "failed"
         showPreview(latest, R.drawable.ic_paw)
         binding.latestPhotoCard.alpha = if (highlightId != null && latest.id == highlightId) 1f else 0.98f
+    }
+
+    private fun refreshAutomation() {
+        binding.autoCaptureSwitch.isChecked = PhotoAutomationPreferences.autoCaptureEnabled(requireContext())
+        binding.notificationSwitch.isChecked = PhotoAutomationPreferences.notificationsEnabled(requireContext())
+        binding.cleanupButton.text = getString(R.string.cleanup_period, PhotoAutomationPreferences.cleanupDays(requireContext()))
+        binding.deviceStatusText.text = getString(R.string.device_status_checking)
+        kotlin.concurrent.thread {
+            val cameraOnline = PetGuardianRepository.cameraOnline()
+            PetGuardianRepository.fetchDashboard(1) { result ->
+                activity?.runOnUiThread {
+                    if (_binding == null) return@runOnUiThread
+                    val hubOnline = result.getOrNull()?.snapshot?.createdAt?.let { UiFormatters.isRecent(it, 180) } == true
+                    binding.deviceStatusText.text = getString(
+                        R.string.device_status_format,
+                        if (hubOnline) "online" else "offline",
+                        if (hubOnline) "online" else "offline",
+                        if (cameraOnline) "online" else "offline"
+                    )
+                }
+            }
+        }
+    }
+
+    private fun chooseCleanupPeriod() {
+        val values = intArrayOf(7, 30, 90, 365)
+        val labels = values.map { getString(R.string.cleanup_period, it) }.toTypedArray()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.cleanup_title)
+            .setItems(labels) { _, which ->
+                PhotoAutomationPreferences.setCleanupDays(requireContext(), values[which])
+                val removed = PhotoAlbumStore.cleanupOldPhotos(values[which])
+                Toast.makeText(requireContext(), getString(R.string.cleanup_done, removed), Toast.LENGTH_SHORT).show()
+                refreshContent()
+                refreshAutomation()
+            }
+            .show()
     }
 
     private fun applyTheme() {
@@ -195,20 +250,8 @@ class PhotoFragment : Fragment() {
     private fun openDetail(entry: PhotoEntry) {
         startActivity(
             Intent(requireContext(), com.lauro.petguardian.PhotoDetailActivity::class.java)
-                .putExtra("album", entry.album)
-                .putExtra("status", statusLabel(entry.status))
-                .putExtra("date", UiFormatters.date(entry.requestedAt))
-                .putExtra("reason", reasonLabel(entry.reason))
-                .putExtra("note", entry.note)
-                .putExtra("imagePath", entry.imagePath)
-                .putExtra("sourceUrl", entry.sourceUrl)
+                .putExtra("photoId", entry.id)
         )
-    }
-
-    private fun reasonLabel(reason: String): String = when (reason) {
-        "alert" -> "Alerta do sistema"
-        "weekly" -> "Revisao semanal"
-        else -> "Solicitacao manual"
     }
 
     private fun statusLabel(status: String): String = when (status) {

@@ -1,55 +1,113 @@
-﻿package com.lauro.petguardian
+package com.lauro.petguardian
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Bundle
-import android.view.View
+import android.content.Intent
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import com.lauro.petguardian.data.PhotoAlbumStore
+import com.lauro.petguardian.data.PhotoEntry
 import com.lauro.petguardian.databinding.ActivityPhotoDetailBinding
+import com.lauro.petguardian.ui.UiFormatters
 import java.io.File
 
 class PhotoDetailActivity : AppCompatActivity() {
     private lateinit var binding: ActivityPhotoDetailBinding
+    private val photoId by lazy { intent.getStringExtra("photoId").orEmpty() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityPhotoDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         binding.backButton.setOnClickListener { finish() }
+        binding.favoriteButton.setOnClickListener {
+            PhotoAlbumStore.toggleFavorite(photoId)
+            showPhoto()
+        }
+        binding.saveToGalleryButton.setOnClickListener { saveToGallery() }
+        binding.shareButton.setOnClickListener { sharePhoto() }
+    }
 
-        val status = intent.getStringExtra("status").orEmpty()
-        val imagePath = intent.getStringExtra("imagePath").orEmpty()
-        val sourceUrl = intent.getStringExtra("sourceUrl").orEmpty()
+    override fun onResume() {
+        super.onResume()
+        showPhoto()
+    }
 
-        binding.photoAlbum.text = intent.getStringExtra("album").orEmpty()
-        binding.photoStatus.text = status
-        binding.photoDate.text = intent.getStringExtra("date").orEmpty()
-        binding.photoReason.text = intent.getStringExtra("reason").orEmpty()
-        binding.photoNote.text = intent.getStringExtra("note").orEmpty()
-        binding.photoSource.text = sourceUrl.ifBlank { "Captura armazenada apenas no dispositivo." }
+    private fun showPhoto() {
+        val entry = PhotoAlbumStore.byId(photoId) ?: run {
+            Toast.makeText(this, R.string.photo_not_available, Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
 
-        val imageFile = if (imagePath.isBlank()) null else File(imagePath)
-        val bitmap = imageFile?.takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.absolutePath) }
+        binding.photoAlbum.text = PhotoAlbumStore.albumLabel(entry)
+        binding.photoDate.text = UiFormatters.date(entry.requestedAt)
+        binding.favoriteButton.text = getString(
+            if (entry.isFavorite) R.string.photo_unfavorite else R.string.photo_favorite
+        )
 
+        val bitmap = File(entry.imagePath).takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.absolutePath) }
         if (bitmap != null) {
             binding.photoArtwork.setImageBitmap(bitmap)
             binding.photoArtwork.imageTintList = null
-            binding.photoArtwork.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-            binding.photoFullscreenHint.visibility = View.VISIBLE
             binding.photoArtwork.setOnClickListener {
-                FullscreenPhotoDialog.newInstance(imagePath).show(supportFragmentManager, "photo_fullscreen")
+                FullscreenPhotoDialog.newInstance(entry.imagePath).show(supportFragmentManager, "photo_fullscreen")
             }
         } else {
-            val icon = when {
-                status.contains("Salva", ignoreCase = true) -> R.drawable.ic_paw
-                status.contains("Recebida", ignoreCase = true) -> R.drawable.ic_metric_motion
-                status.contains("Aguardando", ignoreCase = true) -> R.drawable.ic_metric_sync
-                else -> R.drawable.ic_nav_photo
-            }
-            binding.photoArtwork.setImageResource(icon)
+            binding.photoArtwork.setImageResource(R.drawable.ic_nav_photo)
             binding.photoArtwork.imageTintList = ContextCompat.getColorStateList(this, R.color.theme_primary_dark)
-            binding.photoArtwork.scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-            binding.photoFullscreenHint.visibility = View.GONE
         }
+    }
+
+    private fun saveToGallery() {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                REQUEST_WRITE_STORAGE
+            )
+            return
+        }
+
+        val entry = PhotoAlbumStore.byId(photoId) ?: return
+        PhotoGalleryExporter.save(this, entry.imagePath)
+            .onSuccess { Toast.makeText(this, R.string.photo_saved_to_gallery, Toast.LENGTH_SHORT).show() }
+            .onFailure { Toast.makeText(this, it.message ?: getString(R.string.photo_save_failed), Toast.LENGTH_LONG).show() }
+    }
+
+    private fun sharePhoto() {
+        val entry = PhotoAlbumStore.byId(photoId) ?: return
+        val file = File(entry.imagePath).takeIf { it.exists() } ?: return
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
+        startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                },
+                getString(R.string.photo_share)
+            )
+        )
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_WRITE_STORAGE && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            saveToGallery()
+        }
+    }
+
+    companion object {
+        private const val REQUEST_WRITE_STORAGE = 71
     }
 }

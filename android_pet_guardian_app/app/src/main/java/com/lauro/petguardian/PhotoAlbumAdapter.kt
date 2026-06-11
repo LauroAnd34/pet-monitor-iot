@@ -11,7 +11,8 @@ import com.lauro.petguardian.databinding.ItemPhotoAlbumEntryBinding
 import java.io.File
 
 class PhotoAlbumAdapter(
-    private val onClick: (PhotoEntry) -> Unit
+    private val onClick: (PhotoEntry) -> Unit,
+    private val onFavoriteClick: (PhotoEntry) -> Unit
 ) : RecyclerView.Adapter<PhotoAlbumAdapter.PhotoViewHolder>() {
 
     private var items: List<PhotoEntry> = emptyList()
@@ -33,13 +34,18 @@ class PhotoAlbumAdapter(
     }
 
     override fun onBindViewHolder(holder: PhotoViewHolder, position: Int) {
-        holder.bind(items[position], palette, onClick)
+        holder.bind(items[position], palette, onClick, onFavoriteClick)
     }
 
     override fun getItemCount(): Int = items.size
 
     class PhotoViewHolder(private val binding: ItemPhotoAlbumEntryBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(entry: PhotoEntry, palette: ThemePalette?, onClick: (PhotoEntry) -> Unit) {
+        fun bind(
+            entry: PhotoEntry,
+            palette: ThemePalette?,
+            onClick: (PhotoEntry) -> Unit,
+            onFavoriteClick: (PhotoEntry) -> Unit
+        ) {
             val ctx = binding.root.context
             val imageFile = File(entry.imagePath)
             val bitmap = if (imageFile.exists()) BitmapFactory.decodeFile(imageFile.absolutePath) else null
@@ -52,28 +58,17 @@ class PhotoAlbumAdapter(
             }
 
             binding.photoDate.text = com.lauro.petguardian.ui.UiFormatters.date(entry.requestedAt)
-            binding.photoReason.text = when (entry.reason) {
-                "alert" -> "Alerta do sistema"
-                "weekly" -> "Revisao semanal"
-                else -> "Solicitacao manual"
-            }
-            binding.photoNote.text = entry.note
-            binding.photoStatus.text = when (entry.status) {
-                "requested" -> ctx.getString(R.string.photo_status_requested)
-                "waiting" -> ctx.getString(R.string.photo_status_waiting)
-                "received" -> ctx.getString(R.string.photo_status_received)
-                "saved" -> ctx.getString(R.string.photo_status_saved)
-                else -> ctx.getString(R.string.photo_status_failed)
-            }
+            binding.favoriteButton.text = if (entry.isFavorite) "★" else "☆"
+            binding.favoriteButton.contentDescription = ctx.getString(
+                if (entry.isFavorite) R.string.photo_unfavorite else R.string.photo_favorite
+            )
 
             palette?.let {
                 binding.photoCard.setCardBackgroundColor(it.surface)
                 binding.photoCard.strokeColor = it.border
                 binding.photoDate.setTextColor(it.text)
-                binding.photoReason.setTextColor(it.softText)
-                binding.photoNote.setTextColor(it.softText)
-                binding.photoStatus.setTextColor(it.text)
-                binding.photoStatus.background = GradientDrawable().apply {
+                binding.favoriteButton.setTextColor(it.text)
+                binding.favoriteButton.background = GradientDrawable().apply {
                     cornerRadius = 999f
                     setColor(it.chip)
                     setStroke(1, it.primaryDark)
@@ -81,6 +76,7 @@ class PhotoAlbumAdapter(
             }
 
             binding.root.setOnClickListener { onClick(entry) }
+            binding.favoriteButton.setOnClickListener { onFavoriteClick(entry) }
         }
     }
 }

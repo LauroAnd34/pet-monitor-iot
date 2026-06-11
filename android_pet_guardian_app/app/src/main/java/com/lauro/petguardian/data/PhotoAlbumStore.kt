@@ -2,6 +2,7 @@ package com.lauro.petguardian.data
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -13,7 +14,8 @@ data class PhotoEntry(
     val reason: String,
     val note: String,
     val imagePath: String = "",
-    val sourceUrl: String = ""
+    val sourceUrl: String = "",
+    val isFavorite: Boolean = false
 )
 
 object PhotoAlbumStore {
@@ -29,7 +31,8 @@ object PhotoAlbumStore {
             status = "requested",
             album = albumForReason(reason),
             reason = reason,
-            note = "Aguardando a proxima captura da camera do sistema."
+            note = "Aguardando a proxima captura da camera do sistema.",
+            isFavorite = reason == "alert"
         )
         val current = loadMutable()
         current.add(0, entry)
@@ -39,7 +42,19 @@ object PhotoAlbumStore {
 
     fun all(): List<PhotoEntry> = loadMutable()
 
-    fun fromAlbum(album: String): List<PhotoEntry> = all().filter { it.album == album && it.imagePath.isNotBlank() }
+    fun byId(id: String): PhotoEntry? = all().firstOrNull { it.id == id }
+
+    fun fromAlbum(album: String): List<PhotoEntry> {
+        val today = LocalDate.now()
+        return savedPhotos().filter { entry ->
+            when {
+                album.contains("Hoje", ignoreCase = true) -> entry.requestedLocalDate() == today
+                album.contains("7 dias", ignoreCase = true) -> entry.requestedLocalDate()?.let { !it.isBefore(today.minusDays(6)) } == true
+                album.contains("Momentos", ignoreCase = true) -> entry.isFavorite
+                else -> true
+            }
+        }
+    }
 
     fun updateStatus(id: String, status: String, note: String) {
         val items = loadMutable().map {
@@ -64,9 +79,44 @@ object PhotoAlbumStore {
         save(items)
     }
 
-    fun todayCount(): Int = all().count { it.album == "Hoje" && it.imagePath.isNotBlank() }
-    fun weekCount(): Int = all().count { it.album == "Últimos 7 dias" && it.imagePath.isNotBlank() }
-    fun eventCount(): Int = all().count { it.album == "Momentos marcados" && it.imagePath.isNotBlank() }
+    fun toggleFavorite(id: String): Boolean {
+        var favorite = false
+        val items = loadMutable().map {
+            if (it.id == id) {
+                favorite = !it.isFavorite
+                it.copy(isFavorite = favorite)
+            } else {
+                it
+            }
+        }
+        save(items)
+        return favorite
+    }
+
+    fun todayCount(): Int = fromAlbum("Hoje").size
+    fun weekCount(): Int = fromAlbum("Últimos 7 dias").size
+    fun eventCount(): Int = fromAlbum("Momentos marcados").size
+
+    fun cleanupOldPhotos(days: Int): Int {
+        if (days <= 0) return 0
+        val cutoff = OffsetDateTime.now().minusDays(days.toLong())
+        var removed = 0
+        val remaining = loadMutable().filter { entry ->
+            val shouldRemove = !entry.isFavorite &&
+                runCatching { OffsetDateTime.parse(entry.requestedAt).isBefore(cutoff) }.getOrDefault(false)
+            if (shouldRemove) {
+                if (entry.imagePath.isNotBlank()) java.io.File(entry.imagePath).delete()
+                removed++
+            }
+            !shouldRemove
+        }
+        save(remaining)
+        return removed
+    }
+
+    fun albumLabel(entry: PhotoEntry): String {
+        return if (entry.isFavorite) "Momentos marcados" else entry.album
+    }
 
     private fun albumForReason(reason: String): String = when (reason) {
         "alert" -> "Momentos marcados"
@@ -90,7 +140,8 @@ object PhotoAlbumStore {
                     reason = item.optString("reason"),
                     note = item.optString("note"),
                     imagePath = item.optString("image_path"),
-                    sourceUrl = item.optString("source_url")
+                    sourceUrl = item.optString("source_url"),
+                    isFavorite = item.optBoolean("is_favorite", false)
                 )
             )
         }
@@ -110,8 +161,17 @@ object PhotoAlbumStore {
                     .put("note", item.note)
                     .put("image_path", item.imagePath)
                     .put("source_url", item.sourceUrl)
+                    .put("is_favorite", item.isFavorite)
             )
         }
         prefs().edit().putString(KEY_ITEMS, json.toString()).apply()
+    }
+
+    private fun savedPhotos(): List<PhotoEntry> = all().filter { entry ->
+        entry.imagePath.isNotBlank() && java.io.File(entry.imagePath).exists()
+    }
+
+    private fun PhotoEntry.requestedLocalDate(): LocalDate? {
+        return runCatching { OffsetDateTime.parse(requestedAt).toLocalDate() }.getOrNull()
     }
 }

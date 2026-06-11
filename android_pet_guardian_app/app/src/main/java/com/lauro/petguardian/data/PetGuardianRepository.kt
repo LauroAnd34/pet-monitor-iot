@@ -24,17 +24,7 @@ object PetGuardianRepository {
 
     fun fetchDashboard(limit: Int = 20, callback: (Result<DashboardPayload>) -> Unit) {
         thread {
-            runCatching {
-                val endpoint = "${AppConfig.DASHBOARD_API_URL}?limit=$limit"
-                val connection = openConnection(endpoint, "GET")
-                connection.setRequestProperty("x-dashboard-token", AppConfig.DASHBOARD_TOKEN)
-                val payload = readResponse(connection)
-                if (connection.responseCode !in 200..299) {
-                    error(payload.ifBlank { "Falha ao buscar os dados do pet." })
-                }
-                cacheDashboard(payload)
-                parseDashboard(JSONObject(payload), isCached = false)
-            }.onSuccess {
+            runCatching { fetchDashboardSync(limit) }.onSuccess {
                 callback(Result.success(it))
             }.onFailure { error ->
                 val cached = cachedDashboard()
@@ -72,36 +62,46 @@ object PetGuardianRepository {
 
     fun captureSystemPhoto(reason: String, callback: (Result<CapturedPhotoResult>) -> Unit) {
         thread {
-            runCatching {
-                val endpoint = "${AppConfig.CAMERA_NODE_URL}/capture.bmp?reason=$reason"
-                val connection = openConnection(endpoint, "GET")
-                val bitmap = connection.inputStream.use { input ->
-                    BitmapFactory.decodeStream(input) ?: error("Nao foi possivel decodificar a foto da camera.")
-                }
-                if (connection.responseCode !in 200..299) {
-                    error("A camera nao respondeu com sucesso.")
-                }
-
-                val photosDir = File(PetGuardianApp.appContext.filesDir, "camera_photos")
-                if (!photosDir.exists()) photosDir.mkdirs()
-                val photoFile = File(photosDir, "pet_${System.currentTimeMillis()}_${reason}.png")
-                photoFile.outputStream().use { output ->
-                    if (!bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output)) {
-                        error("Nao foi possivel salvar a foto capturada.")
-                    }
-                }
-
-                CapturedPhotoResult(
-                    localPath = photoFile.absolutePath,
-                    sourceUrl = endpoint
-                )
-            }.onSuccess {
+            runCatching { captureSystemPhotoSync(reason) }.onSuccess {
                 callback(Result.success(it))
             }.onFailure {
                 callback(Result.failure(it))
             }
         }
     }
+
+    fun fetchDashboardSync(limit: Int = 20): DashboardPayload {
+        val endpoint = "${AppConfig.DASHBOARD_API_URL}?limit=$limit"
+        val connection = openConnection(endpoint, "GET")
+        connection.setRequestProperty("x-dashboard-token", AppConfig.DASHBOARD_TOKEN)
+        val payload = readResponse(connection)
+        if (connection.responseCode !in 200..299) error(payload.ifBlank { "Falha ao buscar os dados do pet." })
+        cacheDashboard(payload)
+        return parseDashboard(JSONObject(payload), isCached = false)
+    }
+
+    fun captureSystemPhotoSync(reason: String): CapturedPhotoResult {
+        val endpoint = "${AppConfig.CAMERA_NODE_URL}/capture.bmp?reason=$reason"
+        val connection = openConnection(endpoint, "GET")
+        val bitmap = connection.inputStream.use { input ->
+            BitmapFactory.decodeStream(input) ?: error("Nao foi possivel decodificar a foto da camera.")
+        }
+        if (connection.responseCode !in 200..299) error("A camera nao respondeu com sucesso.")
+
+        val photosDir = File(PetGuardianApp.appContext.filesDir, "camera_photos")
+        if (!photosDir.exists()) photosDir.mkdirs()
+        val photoFile = File(photosDir, "pet_${System.currentTimeMillis()}_${reason}.png")
+        photoFile.outputStream().use { output ->
+            if (!bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output)) error("Nao foi possivel salvar a foto capturada.")
+        }
+        return CapturedPhotoResult(photoFile.absolutePath, endpoint)
+    }
+
+    fun cameraOnline(): Boolean = runCatching {
+        val connection = openConnection("${AppConfig.CAMERA_NODE_URL}/status", "GET")
+        readResponse(connection)
+        connection.responseCode in 200..299
+    }.getOrDefault(false)
 
     private fun parseDashboard(root: JSONObject, isCached: Boolean): DashboardPayload {
         val deviceJson = root.optJSONObject("device") ?: JSONObject()

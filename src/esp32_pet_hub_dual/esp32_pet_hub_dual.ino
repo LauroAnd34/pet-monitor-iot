@@ -16,12 +16,15 @@ IPAddress apSubnet(255, 255, 255, 0);
 const bool WEBHOOK_ENABLED = false;
 const char* WEBHOOK_URL = "";
 const bool CAMERA_INTEGRATION_READY = true;
+const char* CAMERA_CAPTURE_URL = "http://IP_DA_CAMERA/capture.bmp?reason=motion";
 const bool CLOUD_SYNC_ENABLED = true;
 const char* CLOUD_INGEST_URL = "https://rinxodbpufmcoqudcryz.supabase.co/functions/v1/ingest-telemetry";
 const char* CLOUD_DEVICE_TOKEN = "9a4a2633bb134b0ba8e6c6c3ce1a9304";
 const char* CLOUD_COMMAND_URL = "https://rinxodbpufmcoqudcryz.supabase.co/functions/v1/poll-command";
 constexpr unsigned long COMMAND_POLL_INTERVAL_MS = 5000;
 constexpr unsigned long CLOUD_SYNC_INTERVAL_MS = 15000;
+constexpr unsigned long WIFI_RETRY_INTERVAL_MS = 10000;
+constexpr unsigned long MOTION_CAPTURE_COOLDOWN_MS = 5UL * 60UL * 1000UL;
 
 constexpr uint8_t DHT_PIN = 4;
 constexpr uint8_t DHT_TYPE = DHT11;
@@ -64,6 +67,10 @@ constexpr int DEFAULT_DARK_THRESHOLD = 1800;
 constexpr int DEFAULT_LAMP_BRIGHTNESS = 7;
 
 constexpr int NOTE_E4 = 330;
+constexpr int NOTE_C4 = 262;
+constexpr int NOTE_A3 = 220;
+constexpr int NOTE_B3 = 247;
+constexpr int NOTE_G3 = 196;
 constexpr int NOTE_G4 = 392;
 constexpr int NOTE_A4 = 440;
 constexpr int NOTE_AS4 = 466;
@@ -75,6 +82,7 @@ constexpr int NOTE_G5 = 784;
 constexpr int NOTE_A5 = 880;
 constexpr int REST = 0;
 constexpr int BUZZER_TEMPO = 200;
+constexpr int CONNECTION_MELODY_TEMPO = 160;
 
 const int FEED_MELODY[] = {
   NOTE_E5, 8, NOTE_E5, 8, REST, 8, NOTE_E5, 8, REST, 8, NOTE_C5, 8, NOTE_E5, 8,
@@ -82,6 +90,14 @@ const int FEED_MELODY[] = {
   NOTE_C5, -4, NOTE_G4, 8, REST, 4, NOTE_E4, -4,
   NOTE_A4, 4, NOTE_B4, 4, NOTE_AS4, 8, NOTE_A4, 4,
   NOTE_G4, -8, NOTE_E5, -8, NOTE_G5, -8, NOTE_A5, 4, NOTE_F5, 8, NOTE_G5, 8,
+};
+
+const int CONNECTION_MELODY[] = {
+  REST, 1, REST, 1,
+  NOTE_C4, 4, NOTE_E4, 4, NOTE_G4, 4, NOTE_E4, 4,
+  NOTE_C4, 4, NOTE_E4, 8, NOTE_G4, -4, NOTE_E4, 4,
+  NOTE_A3, 4, NOTE_C4, 8, NOTE_E4, -4, NOTE_C4, 4,
+  NOTE_G3, 4, NOTE_B3, 4, NOTE_G3, -1,
 };
 
 DHT dht(DHT_PIN, DHT_TYPE);
@@ -148,6 +164,11 @@ unsigned long lastAlertSentMs = 0;
 unsigned long lampAutoUntilMs = 0;
 unsigned long lastCloudAttemptMs = 0;
 unsigned long lastCommandPollMs = 0;
+unsigned long lastWiFiRetryMs = 0;
+unsigned long lastMotionCaptureMs = 0;
+bool wifiWasConnected = false;
+bool fallbackAccessPointActive = false;
+bool previousMotionDetected = false;
 
 void logSensorSnapshot();
 
@@ -285,32 +306,41 @@ void maybeSendAlert(const String& message) {
   sendWebhookAlert(message);
 }
 
+void capturePhotoOnMotion() {
+  if (WiFi.status() != WL_CONNECTED || String(CAMERA_CAPTURE_URL).indexOf("IP_DA_CAMERA") >= 0) return;
+  HTTPClient http;
+  http.begin(CAMERA_CAPTURE_URL);
+  int httpCode = http.GET();
+  Serial.println("[CAMERA] Captura por movimento. HTTP: " + String(httpCode));
+  http.end();
+}
+
 void runFeedMotor(unsigned long durationMs) {
   setFeedMotor(true);
   delay(durationMs);
   setFeedMotor(false);
 }
 
-void playBuzzerTone(int frequency, int durationMs) {
+void playBuzzerTone(int frequency, int durationMs, float pitchScale = BUZZER_PITCH_SCALE) {
   if (frequency <= 0) {
     ledcWriteTone(BUZZER_PIN, 0);
     delay(durationMs);
     return;
   }
 
-  int boostedFrequency = static_cast<int>(frequency * BUZZER_PITCH_SCALE);
+  int boostedFrequency = static_cast<int>(frequency * pitchScale);
   ledcWriteTone(BUZZER_PIN, boostedFrequency);
   ledcWrite(BUZZER_PIN, BUZZER_DUTY);
   delay(durationMs);
   ledcWrite(BUZZER_PIN, 0);
 }
 
-void playFeedingMelody() {
-  const int notes = sizeof(FEED_MELODY) / sizeof(FEED_MELODY[0]) / 2;
-  const int wholeNote = (60000 * 4) / BUZZER_TEMPO;
+void playMelody(const int melody[], int itemCount, int tempo, float pitchScale) {
+  const int notes = itemCount / 2;
+  const int wholeNote = (60000 * 4) / tempo;
 
   for (int index = 0; index < notes * 2; index += 2) {
-    int divider = FEED_MELODY[index + 1];
+    int divider = melody[index + 1];
     int noteDuration = 0;
 
     if (divider > 0) {
@@ -319,8 +349,22 @@ void playFeedingMelody() {
       noteDuration = (wholeNote / abs(divider)) * 1.5;
     }
 
-    playBuzzerTone(FEED_MELODY[index], noteDuration);
+    playBuzzerTone(melody[index], noteDuration, pitchScale);
   }
+}
+
+void playFeedingMelody() {
+  playMelody(FEED_MELODY, sizeof(FEED_MELODY) / sizeof(FEED_MELODY[0]), BUZZER_TEMPO, BUZZER_PITCH_SCALE);
+}
+
+void playConnectionMelody() {
+  Serial.println("[WIFI] Tocando melodia de conexao.");
+  playMelody(
+    CONNECTION_MELODY,
+    sizeof(CONNECTION_MELODY) / sizeof(CONNECTION_MELODY[0]),
+    CONNECTION_MELODY_TEMPO,
+    1.0f
+  );
 }
 
 void dispenseFood() {
@@ -383,6 +427,12 @@ void readSensors() {
   state.lightRaw = analogRead(LDR_PIN);
   state.isDark = state.lightRaw <= lampConfig.darkThreshold;
   state.motionDetected = digitalRead(PIR_PIN) == HIGH;
+  if (state.motionDetected && !previousMotionDetected &&
+      (lastMotionCaptureMs == 0 || millis() - lastMotionCaptureMs >= MOTION_CAPTURE_COOLDOWN_MS)) {
+    lastMotionCaptureMs = millis();
+    capturePhotoOnMotion();
+  }
+  previousMotionDetected = state.motionDetected;
 
   if (!isnan(state.temperatureC) && state.temperatureC >= HIGH_TEMP_THRESHOLD) {
     maybeSendAlert("Temperatura alta detectada.");
@@ -881,13 +931,26 @@ void handleAutomationConfig() {
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
-void startSoftAp() {
-  WiFi.mode(WIFI_AP);
+void startSoftAp(bool keepStationEnabled = false) {
+  WiFi.mode(keepStationEnabled ? WIFI_AP_STA : WIFI_AP);
   WiFi.softAPConfig(apIp, apGateway, apSubnet);
   WiFi.softAP(AP_SSID, AP_PASSWORD);
 
-  state.networkMode = "Access Point";
+  fallbackAccessPointActive = true;
+  state.networkMode = keepStationEnabled ? "Access Point + reconexao Wi-Fi" : "Access Point";
   state.appUrl = "http://" + WiFi.softAPIP().toString();
+}
+
+void handleWiFiConnected() {
+  state.networkMode = fallbackAccessPointActive ? "Cliente Wi-Fi + Access Point" : "Cliente Wi-Fi";
+  state.appUrl = "http://" + WiFi.localIP().toString();
+  Serial.println("[WIFI] Conectado com sucesso.");
+  Serial.println("[WIFI] IP local: " + WiFi.localIP().toString());
+
+  if (!wifiWasConnected) {
+    wifiWasConnected = true;
+    playConnectionMelody();
+  }
 }
 
 void connectToWiFi() {
@@ -899,6 +962,8 @@ void connectToWiFi() {
   }
 
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(false);
   Serial.println("[WIFI] Conectando em: " + String(WIFI_SSID));
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
@@ -910,16 +975,38 @@ void connectToWiFi() {
   Serial.println();
 
   if (WiFi.status() == WL_CONNECTED) {
-    state.networkMode = "Cliente Wi-Fi";
-    state.appUrl = "http://" + WiFi.localIP().toString();
-    Serial.println("[WIFI] Conectado com sucesso.");
-    Serial.println("[WIFI] IP local: " + WiFi.localIP().toString());
+    handleWiFiConnected();
     return;
   }
 
-  Serial.println("[WIFI] Falha ao conectar no roteador. Voltando para Access Point.");
-  startSoftAp();
+  Serial.println("[WIFI] Falha ao conectar no roteador. Access Point ativo; novas tentativas continuarao em segundo plano.");
+  startSoftAp(true);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.println("[WIFI] URL local: " + state.appUrl);
+}
+
+void maintainWiFiConnection() {
+  if (USE_SOFT_AP) return;
+
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!wifiWasConnected) handleWiFiConnected();
+    return;
+  }
+
+  if (wifiWasConnected) {
+    wifiWasConnected = false;
+    state.cloudConnected = false;
+    state.lastCloudStatus = "Wi-Fi desconectado";
+    state.networkMode = fallbackAccessPointActive ? "Access Point + reconexao Wi-Fi" : "Reconectando Wi-Fi";
+    Serial.println("[WIFI] Conexao perdida.");
+  }
+
+  unsigned long now = millis();
+  if (now - lastWiFiRetryMs < WIFI_RETRY_INTERVAL_MS) return;
+
+  lastWiFiRetryMs = now;
+  Serial.println("[WIFI] Tentando reconectar em: " + String(WIFI_SSID));
+  WiFi.reconnect();
 }
 
 void setupPins() {
@@ -982,6 +1069,7 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  maintainWiFiConnection();
 
   unsigned long now = millis();
   if (now - lastSensorReadMs >= SENSOR_INTERVAL_MS) {

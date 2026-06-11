@@ -3,66 +3,47 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/photoCard"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginBottom="12dp"
-    app:cardCornerRadius="24dp"
+    android:layout_height="220dp"
+    android:layout_margin="5dp"
+    app:cardCornerRadius="22dp"
     app:strokeWidth="1dp">
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="14dp">
+        android:layout_height="match_parent">
 
         <ImageView
             android:id="@+id/photoThumb"
-            android:layout_width="78dp"
-            android:layout_height="78dp"
-            android:background="@drawable/avatar_clip"
-            android:clipToOutline="true"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_nav_photo" />
 
-        <LinearLayout
-            android:layout_width="0dp"
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/photo_caption_gradient" />
+
+        <TextView
+            android:id="@+id/photoDate"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:layout_gravity="bottom"
+            android:padding="12dp"
+            android:textColor="@android:color/white"
+            android:textSize="13sp"
+            android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/photoStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingStart="10dp"
-                android:paddingTop="5dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="5dp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/photoDate"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/photoReason"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textSize="13sp" />
-
-            <TextView
-                android:id="@+id/photoNote"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:maxLines="2"
-                android:textSize="12sp" />
-        </LinearLayout>
-    </LinearLayout>
+        <TextView
+            android:id="@+id/favoriteButton"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="9dp"
+            android:gravity="center"
+            android:text="☆"
+            android:textSize="25sp"
+            android:textStyle="bold" />
+    </FrameLayout>
 </com.google.android.material.card.MaterialCardView>

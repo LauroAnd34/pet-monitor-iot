@@ -223,9 +223,30 @@
   <string name="photo_album_open">Abrir álbum</string>
   <string name="photo_album_empty">Esse álbum ainda não tem fotos salvas.</string>
   <string name="photo_album_screen_title">Álbum de fotos</string>
-  <string name="photo_album_screen_subtitle">Toque em uma captura para abrir os detalhes.</string>
+  <string name="photo_album_screen_subtitle">Toque em uma foto para ampliar ou use a estrela para marcar o momento.</string>
   <string name="photo_editor_preview_hint">Aproxime e arraste a foto para escolher exatamente o pedaço que vai aparecer no app.</string>
   <string name="photo_editor_drag_hint">Arraste para cima, baixo ou lados e ajuste o zoom abaixo.</string>
+  <string name="photo_latest_ready">Sua captura mais recente está pronta. Toque para ver em tela cheia.</string>
+  <string name="photo_favorite">Marcar momento</string>
+  <string name="photo_unfavorite">Desmarcar momento</string>
+  <string name="photo_save_to_gallery">Salvar na galeria</string>
+  <string name="photo_saved_to_gallery">Foto salva na galeria do celular.</string>
+  <string name="photo_save_failed">Não foi possível salvar a foto.</string>
+  <string name="photo_not_available">Essa foto não está mais disponível.</string>
+  <string name="back">Voltar</string>
+  <string name="photo_share">Compartilhar foto</string>
+  <string name="photo_intelligence_title">Monitoramento inteligente</string>
+  <string name="device_status_checking">Verificando hub, sensores e câmera…</string>
+  <string name="device_status_format">Hub: %1$s · Sensores: %2$s · Câmera: %3$s</string>
+  <string name="auto_motion_photos">Fotos automáticas por movimento e temperatura</string>
+  <string name="android_notifications">Notificações normais do Android</string>
+  <string name="cleanup_period">Limpeza automática: %1$d dias</string>
+  <string name="cleanup_title">Manter fotos por quanto tempo?</string>
+  <string name="cleanup_done">%1$d fotos antigas removidas.</string>
+  <string name="timeline_title">Linha do tempo</string>
+  <string name="timeline_description">Fotos, alimentação, água, movimento e alertas organizados por horário.</string>
+  <string name="comparison_title">Comparação diária</string>
+  <string name="comparison_today">Hoje</string>
+  <string name="comparison_yesterday">Ontem, em horário semelhante</string>
+  <string name="comparison_missing">Ainda não há uma foto para este período.</string>
 </resources>
-
-

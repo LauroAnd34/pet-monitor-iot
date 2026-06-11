@@ -6,7 +6,7 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import com.lauro.petguardian.data.PhotoAlbumStore
 import com.lauro.petguardian.data.PhotoEntry
 import com.lauro.petguardian.databinding.ActivityPhotoAlbumBinding
@@ -21,8 +21,14 @@ class PhotoAlbumActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val album = intent.getStringExtra("album").orEmpty()
-        adapter = PhotoAlbumAdapter { openDetail(it) }
-        binding.albumList.layoutManager = LinearLayoutManager(this)
+        adapter = PhotoAlbumAdapter(
+            onClick = { openDetail(it) },
+            onFavoriteClick = {
+                PhotoAlbumStore.toggleFavorite(it.id)
+                loadAlbum(album)
+            }
+        )
+        binding.albumList.layoutManager = GridLayoutManager(this, 2)
         binding.albumList.adapter = adapter
         binding.backButton.setOnClickListener { finish() }
         binding.albumTitle.text = album
@@ -71,27 +77,7 @@ class PhotoAlbumActivity : AppCompatActivity() {
     private fun openDetail(entry: PhotoEntry) {
         startActivity(
             Intent(this, PhotoDetailActivity::class.java)
-                .putExtra("album", entry.album)
-                .putExtra("status", statusLabel(entry.status))
-                .putExtra("date", com.lauro.petguardian.ui.UiFormatters.date(entry.requestedAt))
-                .putExtra("reason", reasonLabel(entry.reason))
-                .putExtra("note", entry.note)
-                .putExtra("imagePath", entry.imagePath)
-                .putExtra("sourceUrl", entry.sourceUrl)
+                .putExtra("photoId", entry.id)
         )
-    }
-
-    private fun reasonLabel(reason: String): String = when (reason) {
-        "alert" -> "Alerta do sistema"
-        "weekly" -> "Revisao semanal"
-        else -> "Solicitacao manual"
-    }
-
-    private fun statusLabel(status: String): String = when (status) {
-        "requested" -> getString(R.string.photo_status_requested)
-        "waiting" -> getString(R.string.photo_status_waiting)
-        "received" -> getString(R.string.photo_status_received)
-        "saved" -> getString(R.string.photo_status_saved)
-        else -> getString(R.string.photo_status_failed)
     }
 }
