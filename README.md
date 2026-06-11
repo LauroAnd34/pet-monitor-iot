@@ -134,15 +134,3 @@ Use URLs, tokens e IPs do seu próprio ambiente.
 - `HTML, CSS e JavaScript`
 - `Vercel`
 
-## Observações importantes
-
-- O projeto foi organizado para apresentação final no GitHub.
-- Arquivos temporários de build e credenciais locais foram separados da estrutura principal.
-- A integração com câmera está pronta para evolução sem quebrar a arquitetura atual do app.
-
-## Próximos passos recomendados
-
-- integrar captura real da câmera ao fluxo do app
-- consolidar autenticação de usuário
-- adicionar push notifications reais
-- concluir sincronização completa de comandos remotos com confirmação de execução
