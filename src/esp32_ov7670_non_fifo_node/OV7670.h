@@ -17,7 +17,7 @@ class OV7670: public I2SCamera
 
   protected:
   static const int ADDR = 0x42;
-  
+
   Mode mode;
   I2C i2c;
 
@@ -81,7 +81,7 @@ class OV7670: public I2SCamera
   static const int REG_COM13 = 0x3d;
     static const int COM13_UVSAT = 0x40;
   static const int REG_SCALING_XSC = 0x70;
-  static const int REG_SCALING_YSC = 0x71;    
+  static const int REG_SCALING_YSC = 0x71;
   static const int REG_SCALING_DCWCTR = 0x72;
   static const int REG_SCALING_PCLK_DIV = 0x73;
   static const int REG_SCALING_PCLK_DELAY = 0xa2;

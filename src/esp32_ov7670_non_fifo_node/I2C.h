@@ -15,7 +15,7 @@ class I2C
 
   void inline SCLHIGH()
   {
-    pinMode(SCL, INPUT_PULLUP);  
+    pinMode(SCL, INPUT_PULLUP);
     digitalWrite(SCL, 1);
   }
 
@@ -28,22 +28,22 @@ class I2C
     SCLLOW();
     DELAY();
   }
-  
+
   void inline SDALOW()
   {
     pinMode(SDA, OUTPUT);
-    digitalWrite(SDA, 0);  
+    digitalWrite(SDA, 0);
   }
-  
+
   void inline SDAHIGH()
   {
     pinMode(SDA, OUTPUT);
-    digitalWrite(SDA, 1);  
+    digitalWrite(SDA, 1);
   }
 
   void inline SDAPULLUP()
   {
-    pinMode(SDA, INPUT_PULLUP);  
+    pinMode(SDA, INPUT_PULLUP);
   }
 
   void pushByte(unsigned char b)
@@ -56,9 +56,9 @@ class I2C
         SDALOW();
       b <<= 1;
       CLOCK();
-    }  
+    }
   }
-  
+
   bool getAck()
   {
     SDAPULLUP();
@@ -84,7 +84,7 @@ class I2C
     SCLLOW();
     DELAY();
   }
-  
+
   void end()
   {
     SCLHIGH();
@@ -92,7 +92,7 @@ class I2C
     SDAPULLUP();
     DELAY();
   }
-  
+
   public:
   int SDA;
   int SCL;
@@ -105,32 +105,32 @@ class I2C
     digitalWrite(SDA, 0);
     digitalWrite(SCL, 0);
   }
-  
+
   bool writeRegister(unsigned char addr, unsigned char reg, unsigned char data)
   {
     start();
     pushByte(addr);
-    
+
     if(!getAck())
     {
       end();
       return false;
     }
-    
+
     pushByte(reg);
     if(!getAck())
     {
       end();
       return false;
     }
-  
+
     pushByte(data);
     if(!getAck())
     {
       end();
       return false;
     }
-  
+
     end();
     return true;
   }

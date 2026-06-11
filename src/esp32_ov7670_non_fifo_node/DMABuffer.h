@@ -36,4 +36,3 @@ class DMABuffer
       delete(buffer);
   }
 };
-

@@ -95,7 +95,7 @@ bool I2SCamera::initVSync(int pin)
   vSyncPin = (gpio_num_t)pin;
   gpio_set_intr_type(vSyncPin, GPIO_INTR_POSEDGE);
   gpio_intr_enable(vSyncPin);
-  if(gpio_isr_register(&vSyncInterrupt, (void*)"vSyncInterrupt", ESP_INTR_FLAG_INTRDISABLED | ESP_INTR_FLAG_IRAM, &vSyncInterruptHandle) != ESP_OK) 
+  if(gpio_isr_register(&vSyncInterrupt, (void*)"vSyncInterrupt", ESP_INTR_FLAG_INTRDISABLED | ESP_INTR_FLAG_IRAM, &vSyncInterruptHandle) != ESP_OK)
   {
     DEBUG_PRINTLN("failed!");
     return false;
@@ -127,8 +127,8 @@ bool I2SCamera::init(const int XRES, const int YRES, const int VSYNC, const int 
 }
 
 bool I2SCamera::i2sInit(const int VSYNC, const int HREF, const int PCLK, const int D0, const int D1, const int D2, const int D3, const int D4, const int D5, const int D6, const int D7)
-{    
-  int pins[] = {VSYNC, HREF, PCLK, D0, D1, D2, D3, D4, D5, D6, D7};    
+{
+  int pins[] = {VSYNC, HREF, PCLK, D0, D1, D2, D3, D4, D5, D6, D7};
   gpio_config_t conf = {
     .pin_bit_mask = 0,
     .mode = GPIO_MODE_INPUT,
@@ -158,7 +158,7 @@ bool I2SCamera::i2sInit(const int VSYNC, const int HREF, const int PCLK, const i
     gpio_matrix_in(0x30,  I2S0I_DATA_IN13_IDX, false);
     gpio_matrix_in(0x30,  I2S0I_DATA_IN14_IDX, false);
     gpio_matrix_in(0x30,  I2S0I_DATA_IN15_IDX, false);
-        
+
     gpio_matrix_in(VSYNC, I2S0I_V_SYNC_IDX, true);
     gpio_matrix_in(0x38,  I2S0I_H_SYNC_IDX, false);  //0x30 sends 0, 0x38 sends 1
     gpio_matrix_in(HREF,  I2S0I_H_ENABLE_IDX, false);
@@ -166,7 +166,7 @@ bool I2SCamera::i2sInit(const int VSYNC, const int HREF, const int PCLK, const i
 
     // Enable and configure I2S peripheral
     periph_module_enable(PERIPH_I2S0_MODULE);
-    
+
     // Toggle some reset bits in LC_CONF register
     // Toggle some reset bits in CONF register
     i2sConfReset();

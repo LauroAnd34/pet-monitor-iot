@@ -13,15 +13,15 @@ class BMP
   {
     *(long*)(buffer+pos) = l;
   }
-  
+
   static void setShort(void *buffer, int pos, short s)
   {
     *(short*)(buffer+pos) = s;
   }
-  
-public:  
+
+public:
   static const int headerSize = 54 + 12;
-  
+
   static void construct16BitHeader(void *buffer, long xres, long yres)
   {
     setChar(buffer, 0, 'B');
@@ -30,7 +30,7 @@ public:
     long bytesPerLine = xres * 2;
     setLong(buffer, 2, bytesPerLine * yres  + 54 + 12); //filesize
     setLong(buffer, 6, 0);
-    
+
     setLong(buffer, 10, 54 + 12); //offset
 
     setLong(buffer, 14, 40); //header size
@@ -51,5 +51,3 @@ public:
     setLong(buffer, 62, 0x001F); //B mask
   }
 };
-
-
