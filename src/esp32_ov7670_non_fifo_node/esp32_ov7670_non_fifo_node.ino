@@ -1,51 +1,56 @@
-#include <Wire.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include <OV7670.h>
+#include <HTTPClient.h>
+#include "OV7670.h"
 
-const char* WIFI_SSID = "Lauroo";
-const char* WIFI_PASSWORD = "Lalalauro23";
+// Configure localmente antes de gravar. Nao publique credenciais reais.
+const char* WIFI_SSID = "SEU_WIFI";
+const char* WIFI_PASSWORD = "SUA_SENHA";
+const char* CLOUD_DEVICE_TOKEN = "SEU_DEVICE_TOKEN";
+const char* CAMERA_COMMAND_URL = "https://SEU_PROJETO.supabase.co/functions/v1/poll-camera-command";
+const char* PHOTO_UPLOAD_URL = "https://SEU_PROJETO.supabase.co/functions/v1/upload-photo";
+constexpr unsigned long COMMAND_POLL_INTERVAL_MS = 4000;
+constexpr unsigned long WIFI_RETRY_INTERVAL_MS = 10000;
 
-#define CAM_RES QQVGA
-#define CAM_WIDTH 160
-#define CAM_HEIGHT 120
-#define CAM_COLOR_MODE RGB565
+#define CAM_WIDTH 80
+#define CAM_HEIGHT 60
 
-constexpr int CROP_LEFT = 8;
-constexpr int CROP_RIGHT = 8;
-constexpr int CROP_TOP = 10;
-constexpr int CROP_BOTTOM = 12;
+constexpr int SIOD_PIN = 21;
+constexpr int SIOC_PIN = 22;
+constexpr int VSYNC_PIN = 34;
+constexpr int HREF_PIN = 35;
+constexpr int XCLK_PIN = 32;
+constexpr int PCLK_PIN = 33;
+constexpr int D0_PIN = 27;
+constexpr int D1_PIN = 5;
+constexpr int D2_PIN = 2;
+constexpr int D3_PIN = 15;
+constexpr int D4_PIN = 14;
+constexpr int D5_PIN = 13;
+constexpr int D6_PIN = 12;
+constexpr int D7_PIN = 4;
+
+constexpr int CROP_LEFT = 4;
+constexpr int CROP_RIGHT = 4;
+constexpr int CROP_TOP = 5;
+constexpr int CROP_BOTTOM = 6;
 constexpr int OUT_WIDTH = CAM_WIDTH - CROP_LEFT - CROP_RIGHT;
 constexpr int OUT_HEIGHT = CAM_HEIGHT - CROP_TOP - CROP_BOTTOM;
 
-const camera_config_t cam_conf = {
-  .D0 = 27,
-  .D1 = 5,
-  .D2 = 2,
-  .D3 = 15,
-  .D4 = 14,
-  .D5 = 13,
-  .D6 = 12,
-  .D7 = 4,
-  .XCLK = 32,
-  .PCLK = 33,
-  .VSYNC = 34,
-  .xclk_freq_hz = 10000000,
-  .ledc_timer = LEDC_TIMER_0,
-  .ledc_channel = LEDC_CHANNEL_0
-};
-
-OV7670 cam;
+OV7670* camera = nullptr;
 WiFiServer server(80);
 constexpr size_t BMP_HEADER_SIZE = 54;
 constexpr size_t BMP_ROW_SIZE = ((OUT_WIDTH * 3) + 3) & ~3;
+constexpr size_t BMP_SIZE = BMP_HEADER_SIZE + (BMP_ROW_SIZE * OUT_HEIGHT);
 unsigned char bmpHeader[BMP_HEADER_SIZE];
-uint8_t frameBuffer[CAM_WIDTH * CAM_HEIGHT * 2];
 uint8_t bmpRowBuffer[BMP_ROW_SIZE];
 
 unsigned long frameCount = 0;
 unsigned long lastFrameMs = 0;
+unsigned long lastCommandPollMs = 0;
+unsigned long lastWifiRetryMs = 0;
 String lastReason = "idle";
+String lastCloudStatus = "idle";
 
 void writeLittleEndian32(unsigned char* buffer, int offset, uint32_t value) {
   buffer[offset + 0] = value & 0xFF;
@@ -98,7 +103,7 @@ void rgb565ToSoftColor(uint16_t pixel, uint8_t& outR, uint8_t& outG, uint8_t& ou
 
 void buildClarityBmpRow(int sourceRowIndex) {
   memset(bmpRowBuffer, 0, BMP_ROW_SIZE);
-  const uint16_t* srcRow = reinterpret_cast<const uint16_t*>(frameBuffer + (sourceRowIndex * CAM_WIDTH * 2));
+  const uint16_t* srcRow = reinterpret_cast<const uint16_t*>(camera->frame + (sourceRowIndex * CAM_WIDTH * 2));
 
   for (int x = 0; x < OUT_WIDTH; ++x) {
     uint16_t pixel = srcRow[x + CROP_LEFT];
@@ -166,12 +171,24 @@ void sendStatus(WiFiClient& client) {
   client.print(OUT_WIDTH);
   client.print(",\"height\":");
   client.print(OUT_HEIGHT);
+  client.print(",\"cloudStatus\":\"");
+  client.print(lastCloudStatus);
+  client.print("\"");
   client.println("}");
 }
 
 void sendCapture(WiFiClient& client, const String& reason) {
+  if (!camera || !camera->vsyncOk) {
+    client.println("HTTP/1.1 503 Service Unavailable");
+    client.println("Content-Type: application/json");
+    client.println("Connection: close");
+    client.println();
+    client.println("{\"ok\":false,\"error\":\"camera_not_ready\"}");
+    return;
+  }
+
   lastReason = reason;
-  cam.getFrame(frameBuffer);
+  camera->oneFrame();
   frameCount++;
   lastFrameMs = millis();
 
@@ -203,6 +220,123 @@ String parseReason(const String& requestLine) {
     reason = reason.substring(0, spaceIndex);
   }
   return reason;
+}
+
+String extractJsonString(const String& payload, const String& key) {
+  String needle = "\"" + key + "\":\"";
+  int start = payload.indexOf(needle);
+  if (start < 0) return "";
+  start += needle.length();
+  int end = payload.indexOf('"', start);
+  return end < 0 ? "" : payload.substring(start, end);
+}
+
+long extractJsonLong(const String& payload, const String& key) {
+  String needle = "\"" + key + "\":";
+  int start = payload.indexOf(needle);
+  if (start < 0) return 0;
+  start += needle.length();
+  while (start < payload.length() && payload[start] == ' ') start++;
+  int end = start;
+  while (end < payload.length() && isDigit(payload[end])) end++;
+  return payload.substring(start, end).toInt();
+}
+
+bool captureBmp(uint8_t* destination) {
+  if (!camera || !camera->vsyncOk || !destination) return false;
+  camera->oneFrame();
+  frameCount++;
+  lastFrameMs = millis();
+  memcpy(destination, bmpHeader, BMP_HEADER_SIZE);
+  size_t offset = BMP_HEADER_SIZE;
+  for (int row = CAM_HEIGHT - CROP_BOTTOM - 1; row >= CROP_TOP; --row) {
+    buildClarityBmpRow(row);
+    memcpy(destination + offset, bmpRowBuffer, BMP_ROW_SIZE);
+    offset += BMP_ROW_SIZE;
+  }
+  return true;
+}
+
+bool uploadCloudPhoto(long commandId, const String& reason) {
+  // A imagem compacta e montada temporariamente para caber junto aos buffers TLS.
+  uint8_t* bmp = static_cast<uint8_t*>(malloc(BMP_SIZE));
+  if (!bmp) {
+    lastCloudStatus = "sem_memoria";
+    Serial.println("[CLOUD] Sem memoria para montar BMP.");
+    return false;
+  }
+
+  if (!captureBmp(bmp)) {
+    free(bmp);
+    lastCloudStatus = "camera_indisponivel";
+    return false;
+  }
+
+  HTTPClient http;
+  http.begin(PHOTO_UPLOAD_URL);
+  http.setConnectTimeout(20000);
+  http.setTimeout(45000);
+  http.addHeader("Content-Type", "image/bmp");
+  http.addHeader("x-device-token", CLOUD_DEVICE_TOKEN);
+  http.addHeader("x-command-id", String(commandId));
+  http.addHeader("x-photo-reason", reason);
+  Serial.println("[CLOUD] Enviando BMP de " + String(BMP_SIZE) + " bytes. Heap livre: " + String(ESP.getFreeHeap()));
+  int httpCode = http.POST(bmp, BMP_SIZE);
+  String response = http.getString();
+  http.end();
+  free(bmp);
+
+  if (httpCode >= 200 && httpCode < 300) {
+    lastCloudStatus = "foto_enviada";
+    Serial.println("[CLOUD] Foto enviada. Comando: " + String(commandId));
+    return true;
+  }
+
+  lastCloudStatus = "upload_http_" + String(httpCode);
+  Serial.println("[CLOUD] Falha no upload HTTP " + String(httpCode) + ": " + response);
+  return false;
+}
+
+void pollCameraCommand() {
+  // A camera usa uma fila exclusiva para nao disputar comandos com o hub de sensores.
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  http.begin(CAMERA_COMMAND_URL);
+  http.setConnectTimeout(15000);
+  http.setTimeout(20000);
+  http.addHeader("x-device-token", CLOUD_DEVICE_TOKEN);
+  int httpCode = http.GET();
+  String response = http.getString();
+  http.end();
+
+  if (httpCode < 200 || httpCode >= 300) {
+    lastCloudStatus = "poll_http_" + String(httpCode);
+    Serial.println("[CLOUD] Falha ao consultar fila HTTP " + String(httpCode));
+    return;
+  }
+
+  String commandType = extractJsonString(response, "commandType");
+  if (commandType != "capture_photo") {
+    lastCloudStatus = "fila_vazia";
+    return;
+  }
+
+  long commandId = extractJsonLong(response, "commandId");
+  String reason = extractJsonString(response, "reason");
+  if (reason.length() == 0) reason = "manual";
+  Serial.println("[CLOUD] Pedido de foto recebido. Comando: " + String(commandId));
+  uploadCloudPhoto(commandId, reason);
+}
+
+void maintainWifi() {
+  if (WiFi.status() == WL_CONNECTED) return;
+  unsigned long now = millis();
+  if (now - lastWifiRetryMs < WIFI_RETRY_INTERVAL_MS) return;
+  lastWifiRetryMs = now;
+  Serial.println("[WIFI] Reconectando...");
+  WiFi.disconnect();
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
 
 void serve() {
@@ -264,28 +398,13 @@ void connectWifi() {
 }
 
 void setupCameraNode() {
-  esp_err_t err = cam.init(&cam_conf, CAM_RES, CAM_COLOR_MODE);
-  if (err != ESP_OK) {
-    Serial.print("[CAM] Falha no init: ");
-    Serial.println((int)err);
-    while (true) {
-      delay(1000);
-    }
-  }
-
-  cam.vflip(false);
-  cam.setAGC(1);
-  cam.setAEC(1);
-  cam.setAWB(0);
-  cam.setAWBR(72);
-  cam.setAWBG(64);
-  cam.setAWBB(88);
-  cam.setContrast(80);
-  cam.setBright(12);
-  cam.setPCLK(3, DBLV_CLK_x4);
+  camera = new OV7670(
+    OV7670::QQQVGA_RGB565,
+    SIOD_PIN, SIOC_PIN, VSYNC_PIN, HREF_PIN, XCLK_PIN, PCLK_PIN,
+    D0_PIN, D1_PIN, D2_PIN, D3_PIN, D4_PIN, D5_PIN, D6_PIN, D7_PIN
+  );
   constructBmpHeader(bmpHeader, OUT_WIDTH, OUT_HEIGHT);
-  Serial.printf("[CAM] MID = %X\n", cam.getMID());
-  Serial.printf("[CAM] PID = %X\n", cam.getPID());
+  Serial.printf("[CAM] VSYNC: %s\n", camera->vsyncOk ? "OK" : "falhou");
   Serial.printf("[CAM] Resolucao bruta = %dx%d\n", CAM_WIDTH, CAM_HEIGHT);
   Serial.printf("[CAM] Resolucao exibida = %dx%d\n", OUT_WIDTH, OUT_HEIGHT);
 }
@@ -296,10 +415,7 @@ void setup() {
   Serial.println();
   Serial.println("=== Pet Guardian OV7670 Node ===");
   Serial.println("[INFO] OV7670 sem FIFO em ESP32 comum");
-  Serial.println("[INFO] SIOD->21, SIOC->22, HREF sem uso direto nesta biblioteca, RESET->3.3V, PWDN->GND");
-
-  Wire.begin();
-  Wire.setClock(400000);
+  Serial.println("[INFO] SIOD->21, SIOC->22, HREF->35, RESET->3.3V, PWDN->GND");
 
   connectWifi();
   setupCameraNode();
@@ -313,4 +429,10 @@ void setup() {
 
 void loop() {
   serve();
+  maintainWifi();
+  unsigned long now = millis();
+  if (now - lastCommandPollMs >= COMMAND_POLL_INTERVAL_MS) {
+    lastCommandPollMs = now;
+    pollCameraCommand();
+  }
 }

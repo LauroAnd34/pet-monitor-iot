@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const allowedCommands = new Set(["feed_now", "pump_run", "pump_auto", "lamp_on", "lamp_off", "lamp_auto"]);
+const allowedCommands = new Set(["feed_now", "pump_run", "pump_auto", "lamp_on", "lamp_off", "lamp_auto", "capture_photo"]);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

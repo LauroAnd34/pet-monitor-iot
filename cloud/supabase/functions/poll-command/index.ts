@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
       .select("id,command_type,payload,created_at")
       .eq("device_id", device.id)
       .eq("status", "pending")
+      .neq("command_type", "capture_photo")
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();

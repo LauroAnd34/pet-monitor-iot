@@ -63,3 +63,26 @@ order by device_id, created_at desc;
 
 create index if not exists device_commands_device_status_created_at_idx
 on public.device_commands(device_id, status, created_at asc);
+
+create table if not exists public.pet_photos (
+  id uuid primary key default gen_random_uuid(),
+  device_id uuid not null references public.devices(id) on delete cascade,
+  command_id bigint references public.device_commands(id) on delete set null,
+  storage_path text not null unique,
+  content_type text not null default 'image/bmp',
+  size_bytes integer not null check (size_bytes > 0 and size_bytes <= 300000),
+  reason text not null default 'manual',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists pet_photos_device_created_at_idx
+on public.pet_photos(device_id, created_at desc);
+
+alter table public.pet_photos enable row level security;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('pet-photos', 'pet-photos', false, 300000, array['image/bmp'])
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
