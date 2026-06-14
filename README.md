@@ -127,6 +127,11 @@ objetivos, arquitetura, materiais, montagem, protocolos, instalação, testes e
 limitações. Ele foi escrito como artigo técnico e guia para reproduzir o projeto
 completo.
 
+A versão completa e formatada para envio está disponível em
+[docs/Pet_Guardian_IoT_Documentacao_Completa.docx](docs/Pet_Guardian_IoT_Documentacao_Completa.docx).
+Ela inclui links clicáveis, esquemas visuais, tabelas de pinagem e instruções de
+montagem, instalação, uso e validação.
+
 ## Instalação
 
 ### 1. Supabase
