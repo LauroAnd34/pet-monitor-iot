@@ -61,6 +61,11 @@ flowchart LR
 
 ## Esquema de ligação
 
+O esquema detalhado, incluindo alimentação, proteção elétrica e as duas placas, está
+em [docs/ESQUEMA_ELETRICO_COMPLETO.md](docs/ESQUEMA_ELETRICO_COMPLETO.md). A pinagem
+também pode ser consultada no projeto [Wokwi](wokwi/diagram.json), que abstrai os
+componentes não disponíveis no simulador sem alterar o código.
+
 ### Hub de sensores
 
 ```mermaid
@@ -109,9 +114,18 @@ integração com Supabase e proteção dos tokens durante o transporte.
 android_pet_guardian_app/          aplicativo Android em Kotlin
 cloud/dashboard/                   dashboard web/PWA
 cloud/supabase/                    schema e Edge Functions
+docs/                              artigo técnico e esquema elétrico completo
 src/esp32_pet_hub_dual/            firmware do hub
 src/esp32_ov7670_non_fifo_node/    firmware e biblioteca da OV7670
+wokwi/                             diagrama de pinagem para simulação
 ```
+
+## Artigo e guia de reprodução
+
+O documento [docs/ARTIGO_TECNICO.md](docs/ARTIGO_TECNICO.md) apresenta problema,
+objetivos, arquitetura, materiais, montagem, protocolos, instalação, testes e
+limitações. Ele foi escrito como artigo técnico e guia para reproduzir o projeto
+completo.
 
 ## Instalação
 

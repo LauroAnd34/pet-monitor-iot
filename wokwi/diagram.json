@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "author": "Lauro Andrade",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "hub", "top": -8, "left": -330, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht", "top": -260, "left": -570, "attrs": { "temperature": "24", "humidity": "55" } },
+    { "type": "wokwi-hc-sr04", "id": "food", "top": -260, "left": -390, "attrs": { "distance": "5" } },
+    { "type": "wokwi-hc-sr04", "id": "water", "top": -260, "left": -190, "attrs": { "distance": "7" } },
+    { "type": "wokwi-pir-motion-sensor", "id": "pir", "top": -260, "left": 20, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "gas", "top": 250, "left": -570, "attrs": { "value": "500" } },
+    { "type": "wokwi-potentiometer", "id": "ldr", "top": 250, "left": -420, "attrs": { "value": "500" } },
+    { "type": "wokwi-buzzer", "id": "buzzer", "top": 250, "left": -270, "attrs": { "volume": "0.1" } },
+    { "type": "wokwi-logic-analyzer", "id": "actuators", "top": 235, "left": -70, "attrs": { "label": "Ponte H e iluminação" } },
+
+    { "type": "wokwi-esp32-devkit-v1", "id": "cameraEsp", "top": -8, "left": 330, "attrs": {} },
+    { "type": "wokwi-logic-analyzer", "id": "cameraData", "top": -260, "left": 560, "attrs": { "label": "OV7670 D0-D7" } },
+    { "type": "wokwi-logic-analyzer", "id": "cameraCtrl", "top": 250, "left": 560, "attrs": { "label": "OV7670 controle" } }
+  ],
+  "connections": [
+    [ "hub:3V3", "dht:VCC", "red", [] ],
+    [ "hub:GND.1", "dht:GND", "black", [] ],
+    [ "hub:D4", "dht:SDA", "green", [] ],
+
+    [ "hub:VIN", "food:VCC", "red", [] ],
+    [ "hub:GND.1", "food:GND", "black", [] ],
+    [ "hub:D18", "food:TRIG", "green", [] ],
+    [ "hub:D19", "food:ECHO", "blue", [] ],
+    [ "hub:VIN", "water:VCC", "red", [] ],
+    [ "hub:GND.1", "water:GND", "black", [] ],
+    [ "hub:D5", "water:TRIG", "green", [] ],
+    [ "hub:D17", "water:ECHO", "blue", [] ],
+
+    [ "hub:3V3", "pir:VCC", "red", [] ],
+    [ "hub:GND.1", "pir:GND", "black", [] ],
+    [ "hub:D27", "pir:OUT", "orange", [] ],
+    [ "hub:3V3", "gas:VCC", "red", [] ],
+    [ "hub:GND.1", "gas:GND", "black", [] ],
+    [ "hub:D34", "gas:SIG", "purple", [] ],
+    [ "hub:3V3", "ldr:VCC", "red", [] ],
+    [ "hub:GND.1", "ldr:GND", "black", [] ],
+    [ "hub:D35", "ldr:SIG", "purple", [] ],
+    [ "hub:D32", "buzzer:1", "orange", [] ],
+    [ "hub:GND.1", "buzzer:2", "black", [] ],
+
+    [ "hub:D13", "actuators:D0", "green", [] ],
+    [ "hub:D14", "actuators:D1", "green", [] ],
+    [ "hub:D12", "actuators:D2", "green", [] ],
+    [ "hub:D25", "actuators:D3", "green", [] ],
+    [ "hub:D26", "actuators:D4", "green", [] ],
+    [ "hub:D23", "actuators:D5", "green", [] ],
+    [ "hub:D33", "actuators:D6", "green", [] ],
+    [ "hub:GND.1", "actuators:GND", "black", [] ],
+
+    [ "cameraEsp:D27", "cameraData:D0", "blue", [] ],
+    [ "cameraEsp:D5", "cameraData:D1", "blue", [] ],
+    [ "cameraEsp:D2", "cameraData:D2", "blue", [] ],
+    [ "cameraEsp:D15", "cameraData:D3", "blue", [] ],
+    [ "cameraEsp:D14", "cameraData:D4", "blue", [] ],
+    [ "cameraEsp:D13", "cameraData:D5", "blue", [] ],
+    [ "cameraEsp:D12", "cameraData:D6", "blue", [] ],
+    [ "cameraEsp:D4", "cameraData:D7", "blue", [] ],
+    [ "cameraEsp:GND.1", "cameraData:GND", "black", [] ],
+
+    [ "cameraEsp:D21", "cameraCtrl:D0", "green", [] ],
+    [ "cameraEsp:D22", "cameraCtrl:D1", "green", [] ],
+    [ "cameraEsp:D34", "cameraCtrl:D2", "orange", [] ],
+    [ "cameraEsp:D35", "cameraCtrl:D3", "orange", [] ],
+    [ "cameraEsp:D32", "cameraCtrl:D4", "purple", [] ],
+    [ "cameraEsp:D33", "cameraCtrl:D5", "purple", [] ],
+    [ "cameraEsp:GND.1", "cameraCtrl:GND", "black", [] ]
+  ],
+  "dependencies": {}
+}
+
