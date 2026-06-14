@@ -239,7 +239,7 @@
   <string name="device_status_checking">Verificando hub, sensores e câmera…</string>
   <string name="device_status_format">Hub: %1$s · Sensores: %2$s · Câmera: %3$s</string>
   <string name="auto_motion_photos">Fotos automáticas por movimento e temperatura</string>
-  <string name="android_notifications">Notificações normais do Android</string>
+  <string name="android_notifications">Notificações</string>
   <string name="cleanup_period">Limpeza automática: %1$d dias</string>
   <string name="cleanup_disabled">Limpeza automática desativada</string>
   <string name="device_status_cloud">via nuvem</string>

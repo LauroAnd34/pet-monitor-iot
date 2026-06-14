@@ -1,5 +1,6 @@
 package com.lauro.petguardian.ui
 
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -23,9 +24,14 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
+import com.lauro.petguardian.DailyComparisonActivity
+import com.lauro.petguardian.PetTimelineActivity
 import com.lauro.petguardian.ProfileManager
 import com.lauro.petguardian.R
 import com.lauro.petguardian.ThemeManager
+import com.lauro.petguardian.data.PetGuardianRepository
+import com.lauro.petguardian.data.PhotoAlbumStore
+import com.lauro.petguardian.data.PhotoAutomationPreferences
 import com.lauro.petguardian.databinding.FragmentSettingsBinding
 import java.io.File
 import java.io.FileOutputStream
@@ -93,6 +99,15 @@ class SettingsFragment : Fragment() {
         binding.relativeTimeSwitch.setOnCheckedChangeListener { _, checked -> if (!isApplyingState) { ThemeManager.saveRelativeTimeEnabled(requireContext(), checked); notifyAppearanceChanged() } }
         binding.showGasSwitch.setOnCheckedChangeListener { _, checked -> if (!isApplyingState) { ThemeManager.saveShowGasCard(requireContext(), checked); notifyAppearanceChanged() } }
         binding.showSyncSwitch.setOnCheckedChangeListener { _, checked -> if (!isApplyingState) { ThemeManager.saveShowSyncCard(requireContext(), checked); notifyAppearanceChanged() } }
+        binding.autoCaptureSwitch.setOnCheckedChangeListener { _, checked ->
+            if (!isApplyingState) PhotoAutomationPreferences.setAutoCapture(requireContext(), checked)
+        }
+        binding.notificationSwitch.setOnCheckedChangeListener { _, checked ->
+            if (!isApplyingState) PhotoAutomationPreferences.setNotifications(requireContext(), checked)
+        }
+        binding.cleanupButton.setOnClickListener { chooseCleanupPeriod() }
+        binding.timelineButton.setOnClickListener { startActivity(Intent(requireContext(), PetTimelineActivity::class.java)) }
+        binding.comparisonButton.setOnClickListener { startActivity(Intent(requireContext(), DailyComparisonActivity::class.java)) }
 
         binding.textScaleStandard.setOnClickListener { setTextScale("standard") }
         binding.textScaleLarge.setOnClickListener { setTextScale("large") }
@@ -129,6 +144,10 @@ class SettingsFragment : Fragment() {
         binding.relativeTimeSwitch.isChecked = ThemeManager.relativeTimeEnabled(requireContext())
         binding.showGasSwitch.isChecked = ThemeManager.showGasCard(requireContext())
         binding.showSyncSwitch.isChecked = ThemeManager.showSyncCard(requireContext())
+        binding.autoCaptureSwitch.isChecked = PhotoAutomationPreferences.autoCaptureEnabled(requireContext())
+        binding.notificationSwitch.isChecked = PhotoAutomationPreferences.notificationsEnabled(requireContext())
+        val cleanupDays = PhotoAutomationPreferences.cleanupDays(requireContext())
+        binding.cleanupButton.text = if (cleanupDays <= 0) getString(R.string.cleanup_disabled) else getString(R.string.cleanup_period, cleanupDays)
         highlightSelection(binding.textScaleStandard, ThemeManager.textScaleId(requireContext()) == "standard")
         highlightSelection(binding.textScaleLarge, ThemeManager.textScaleId(requireContext()) == "large")
         highlightSelection(binding.animationSoft, ThemeManager.animationIntensityId(requireContext()) == "soft")
@@ -141,12 +160,16 @@ class SettingsFragment : Fragment() {
         applyActionButtonsTheme()
         applySwitchTheme()
         isApplyingState = false
+        refreshDeviceStatus()
     }
 
     private fun applyActionButtonsTheme() {
         stylePrimaryButton(binding.chooseAvatarButton)
         styleSecondaryButton(binding.removeAvatarButton)
         styleSecondaryButton(binding.saveNamesButton)
+        styleSecondaryButton(binding.cleanupButton)
+        stylePrimaryButton(binding.timelineButton)
+        styleSecondaryButton(binding.comparisonButton)
     }
 
     private fun applySwitchTheme() {
@@ -176,8 +199,42 @@ class SettingsFragment : Fragment() {
             binding.autoRefreshSwitch,
             binding.relativeTimeSwitch,
             binding.showGasSwitch,
-            binding.showSyncSwitch
+            binding.showSyncSwitch,
+            binding.autoCaptureSwitch,
+            binding.notificationSwitch
         ).forEach { styleSwitch(it, thumbTint, trackTint) }
+    }
+
+    private fun refreshDeviceStatus() {
+        binding.deviceStatusText.text = getString(R.string.device_status_checking)
+        PetGuardianRepository.fetchDashboard(1) { result ->
+            activity?.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                val hubOnline = result.getOrNull()?.snapshot?.createdAt?.let { UiFormatters.isRecent(it, 180) } == true
+                binding.deviceStatusText.text = getString(
+                    R.string.device_status_format,
+                    if (hubOnline) "online" else "offline",
+                    if (hubOnline) "online" else "offline",
+                    getString(R.string.device_status_cloud)
+                )
+            }
+        }
+    }
+
+    private fun chooseCleanupPeriod() {
+        val values = intArrayOf(0, 7, 30, 90, 365)
+        val labels = values.map {
+            if (it == 0) getString(R.string.cleanup_disabled) else getString(R.string.cleanup_period, it)
+        }.toTypedArray()
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.cleanup_title)
+            .setItems(labels) { _, which ->
+                PhotoAutomationPreferences.setCleanupDays(requireContext(), values[which])
+                val removed = PhotoAlbumStore.cleanupOldPhotos(values[which])
+                Toast.makeText(requireContext(), getString(R.string.cleanup_done, removed), Toast.LENGTH_SHORT).show()
+                refreshThemeState()
+            }
+            .show()
     }
 
     private fun styleSwitch(switch: MaterialSwitch, thumbTint: ColorStateList, trackTint: ColorStateList) {
