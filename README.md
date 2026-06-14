@@ -132,6 +132,11 @@ A versão completa e formatada para envio está disponível em
 Ela inclui links clicáveis, esquemas visuais, tabelas de pinagem e instruções de
 montagem, instalação, uso e validação.
 
+A apresentação pronta para exposição do trabalho está disponível em
+[docs/Pet_Guardian_IoT_Apresentacao.pptx](docs/Pet_Guardian_IoT_Apresentacao.pptx).
+Ela resume problema, solução, arquitetura, hardware, câmera, aplicativo, validação,
+segurança e próximos passos em dez slides editáveis.
+
 ## Instalação
 
 ### 1. Supabase
