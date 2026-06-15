@@ -21,6 +21,8 @@ const bool CLOUD_SYNC_ENABLED = false;
 const char* CLOUD_INGEST_URL = "https://SEU_PROJETO.supabase.co/functions/v1/ingest-telemetry";
 const char* CLOUD_DEVICE_TOKEN = "SEU_DEVICE_TOKEN";
 constexpr unsigned long CLOUD_SYNC_INTERVAL_MS = 15000;
+constexpr unsigned long WIFI_RETRY_INTERVAL_MS = 10000;
+constexpr unsigned long WIFI_FULL_RESTART_INTERVAL_MS = 60000;
 
 constexpr uint8_t DHT_PIN = 4;
 constexpr uint8_t DHT_TYPE = DHT11;
@@ -123,6 +125,31 @@ unsigned long lastSensorReadMs = 0;
 unsigned long lastAlertSentMs = 0;
 unsigned long lampAutoUntilMs = 0;
 unsigned long lastCloudAttemptMs = 0;
+unsigned long lastWiFiRetryMs = 0;
+unsigned long lastWiFiFullRestartMs = 0;
+bool wifiWasConnected = false;
+bool fallbackAccessPointActive = false;
+
+String wifiStatusLabel(wl_status_t status) {
+  switch (status) {
+    case WL_CONNECTED: return "conectado";
+    case WL_NO_SSID_AVAIL: return "rede nao encontrada";
+    case WL_CONNECT_FAILED: return "senha recusada ou falha de autenticacao";
+    case WL_CONNECTION_LOST: return "conexao perdida";
+    case WL_DISCONNECTED: return "desconectado";
+    case WL_IDLE_STATUS: return "aguardando conexao";
+    default: return "estado " + String(static_cast<int>(status));
+  }
+}
+
+bool cloudConfigIsValid() {
+  String ingestUrl = String(CLOUD_INGEST_URL);
+  String deviceToken = String(CLOUD_DEVICE_TOKEN);
+  return ingestUrl.startsWith("https://") &&
+         ingestUrl.indexOf("SEU_PROJETO") < 0 &&
+         deviceToken.length() > 0 &&
+         deviceToken.indexOf("SEU_DEVICE_TOKEN") < 0;
+}
 
 String jsonFloatOrNull(float value, int decimals) {
   if (isnan(value)) return "null";
@@ -363,9 +390,17 @@ void syncToCloud() {
     return;
   }
 
-  if (WiFi.status() != WL_CONNECTED || String(CLOUD_INGEST_URL).length() == 0 || String(CLOUD_DEVICE_TOKEN).length() == 0) {
+  if (WiFi.status() != WL_CONNECTED) {
     state.cloudConnected = false;
-    state.lastCloudStatus = "Configure Wi-Fi, URL e token";
+    state.lastCloudStatus = "Wi-Fi " + wifiStatusLabel(WiFi.status());
+    Serial.println("[CLOUD] Telemetria aguardando Wi-Fi. Estado: " + wifiStatusLabel(WiFi.status()) + ".");
+    return;
+  }
+
+  if (!cloudConfigIsValid()) {
+    state.cloudConnected = false;
+    state.lastCloudStatus = "URL ou token da nuvem invalidos";
+    Serial.println("[CLOUD] URL ou token da nuvem nao configurados corretamente.");
     return;
   }
 
@@ -753,13 +788,27 @@ void handleAutomationConfig() {
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
-void startSoftAp() {
-  WiFi.mode(WIFI_AP);
+void startSoftAp(bool keepStationEnabled = false) {
+  WiFi.mode(keepStationEnabled ? WIFI_AP_STA : WIFI_AP);
   WiFi.softAPConfig(apIp, apGateway, apSubnet);
   WiFi.softAP(AP_SSID, AP_PASSWORD);
 
-  state.networkMode = "Access Point";
+  fallbackAccessPointActive = true;
+  state.networkMode = keepStationEnabled ? "Access Point + reconexao Wi-Fi" : "Access Point";
   state.appUrl = "http://" + WiFi.softAPIP().toString();
+}
+
+void handleWiFiConnected() {
+  state.networkMode = fallbackAccessPointActive ? "Cliente Wi-Fi + Access Point" : "Cliente Wi-Fi";
+  state.appUrl = "http://" + WiFi.localIP().toString();
+  state.lastCloudStatus = CLOUD_SYNC_ENABLED ? "Wi-Fi conectado; aguardando envio" : "Nuvem desativada";
+  Serial.println("[WIFI] Conectado com sucesso.");
+  Serial.println("[WIFI] IP local: " + WiFi.localIP().toString());
+  Serial.println("[WIFI] Sinal RSSI: " + String(WiFi.RSSI()) + " dBm");
+  if (!wifiWasConnected) {
+    wifiWasConnected = true;
+    playInternetConnectedMelody();
+  }
 }
 
 void connectToWiFi() {
@@ -769,6 +818,9 @@ void connectToWiFi() {
   }
 
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(false);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   unsigned long startAttemptMs = millis();
@@ -777,13 +829,48 @@ void connectToWiFi() {
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    state.networkMode = "Cliente Wi-Fi";
-    state.appUrl = "http://" + WiFi.localIP().toString();
-    playInternetConnectedMelody();
+    handleWiFiConnected();
     return;
   }
 
-  startSoftAp();
+  Serial.println("[WIFI] Falha inicial. Access Point ativo; novas tentativas continuarao.");
+  startSoftAp(true);
+  WiFi.setSleep(false);
+  WiFi.setAutoReconnect(true);
+  lastWiFiRetryMs = millis();
+  lastWiFiFullRestartMs = millis();
+}
+
+void maintainWiFiConnection() {
+  if (USE_SOFT_AP) return;
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!wifiWasConnected) handleWiFiConnected();
+    return;
+  }
+
+  if (wifiWasConnected) {
+    wifiWasConnected = false;
+    state.cloudConnected = false;
+    state.lastCloudStatus = "Wi-Fi desconectado";
+    Serial.println("[WIFI] Conexao perdida.");
+  }
+
+  unsigned long now = millis();
+  if (now - lastWiFiRetryMs < WIFI_RETRY_INTERVAL_MS) return;
+  lastWiFiRetryMs = now;
+  Serial.println("[WIFI] Aguardando reconexao em: " + String(WIFI_SSID) + " (" + wifiStatusLabel(WiFi.status()) + ")");
+
+  if (now - lastWiFiFullRestartMs >= WIFI_FULL_RESTART_INTERVAL_MS) {
+    lastWiFiFullRestartMs = now;
+    Serial.println("[WIFI] Reiniciando interface Wi-Fi apos desconexao prolongada.");
+    WiFi.disconnect(false, false);
+    WiFi.mode(fallbackAccessPointActive ? WIFI_AP_STA : WIFI_STA);
+    WiFi.setSleep(false);
+    WiFi.setAutoReconnect(true);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    return;
+  }
+
 }
 
 void setupPins() {
@@ -838,6 +925,7 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  maintainWiFiConnection();
 
   unsigned long now = millis();
   if (now - lastSensorReadMs >= SENSOR_INTERVAL_MS) {
