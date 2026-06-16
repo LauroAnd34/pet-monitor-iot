@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
     const commandType = String(body.commandType ?? "").trim();
     const payload = body.payload && typeof body.payload === "object" ? body.payload : {};
 
+    // Lista fechada impede que o app injete comandos nao previstos no firmware.
     if (!allowedCommands.has(commandType)) {
       return new Response(JSON.stringify({ error: "invalid command" }), {
         status: 400,

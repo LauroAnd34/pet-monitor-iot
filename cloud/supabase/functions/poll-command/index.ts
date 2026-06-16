@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
       .select("id,command_type,payload,created_at")
       .eq("device_id", device.id)
       .eq("status", "pending")
+      // Fotos sao consumidas apenas pela ESP32 da camera.
       .neq("command_type", "capture_photo")
       .order("created_at", { ascending: true })
       .limit(1)

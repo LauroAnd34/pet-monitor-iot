@@ -294,6 +294,7 @@ void sendWebhookAlert(const String& message) {
 
 void maybeSendAlert(const String& message) {
   unsigned long now = millis();
+  // Evita spam de alertas: uma mesma condicao fisica pode durar varios ciclos.
   if (now - lastAlertSentMs < ALERT_COOLDOWN_MS) return;
 
   lastAlertSentMs = now;
@@ -328,10 +329,12 @@ void picoLampOff(bool manualMode) {
 void evaluateAutomation() {
   unsigned long now = millis();
 
+  // Alimentacao automatica usa intervalo salvo em memoria nao volatil.
   if (feedConfig.autoEnabled && now - state.lastFeedMs >= feedConfig.intervalMs) {
     dispenseFood();
   }
 
+  // A lampada so liga sozinha quando ha escuro e movimento; comando manual tem prioridade.
   if (lampConfig.autoEnabled && state.isDark && state.motionDetected && !picoState.manualMode) {
     if (now >= lampAutoUntilMs) {
       picoLampOn(false);
@@ -339,11 +342,13 @@ void evaluateAutomation() {
     }
   }
 
+  // Depois da janela configurada, a lampada volta ao modo desligado automaticamente.
   if (!picoState.manualMode && picoState.lampOn && lampAutoUntilMs > 0 && now >= lampAutoUntilMs) {
     picoLampOff(false);
     lampAutoUntilMs = 0;
   }
 
+  // A bomba respeita um cooldown para nao ficar ligando continuamente quando o nivel esta baixo.
   if (pumpConfig.autoEnabled &&
       state.waterLevelPercent <= pumpConfig.lowLevelThreshold &&
       now - state.lastPumpMs >= PUMP_COOLDOWN_MS) {
@@ -365,6 +370,7 @@ void readSensors() {
   state.isDark = state.lightRaw <= lampConfig.darkThreshold;
   state.motionDetected = digitalRead(PIR_PIN) == HIGH;
 
+  // As decisoes abaixo transformam leituras brutas em alertas compreensiveis para o app.
   if (!isnan(state.temperatureC) && state.temperatureC >= HIGH_TEMP_THRESHOLD) {
     maybeSendAlert("Temperatura alta detectada.");
   }
@@ -384,6 +390,7 @@ void readSensors() {
 void syncToCloud() {
   state.cloudSyncEnabled = CLOUD_SYNC_ENABLED;
 
+  // O modo local continua funcionando mesmo quando a sincronizacao em nuvem esta desativada.
   if (!CLOUD_SYNC_ENABLED) {
     state.cloudConnected = false;
     state.lastCloudStatus = "Nuvem desativada";
@@ -409,6 +416,7 @@ void syncToCloud() {
   http.addHeader("Content-Type", "application/json");
   http.addHeader("x-device-token", CLOUD_DEVICE_TOKEN);
 
+  // Payload simples em JSON facilita depuracao e integracao com Supabase e app Android.
   String payload = "{";
   payload += "\"temperatureC\":" + jsonFloatOrNull(state.temperatureC, 1) + ",";
   payload += "\"humidity\":" + jsonFloatOrNull(state.humidity, 1) + ",";
@@ -722,6 +730,7 @@ void handleFeed() {
 void handlePump() {
   String stateParam = server.arg("state");
 
+  // A bomba pode ser acionada por tempo fixo ou devolvida ao controle automatico.
   if (stateParam == "run") {
     state.manualPumpMode = true;
     setPumpForDuration(pumpConfig.durationMs);
@@ -738,6 +747,7 @@ void handlePump() {
 void handleLamp() {
   String stateParam = server.arg("state");
 
+  // Comandos manuais bloqueiam a automacao ate o usuario escolher o modo auto novamente.
   if (stateParam == "on") {
     picoLampOn(true);
   } else if (stateParam == "off") {
@@ -833,6 +843,7 @@ void connectToWiFi() {
     return;
   }
 
+  // Se o roteador nao responder, o hub abre um AP local e segue tentando voltar ao Wi-Fi.
   Serial.println("[WIFI] Falha inicial. Access Point ativo; novas tentativas continuarao.");
   startSoftAp(true);
   WiFi.setSleep(false);

@@ -127,15 +127,9 @@ objetivos, arquitetura, materiais, montagem, protocolos, instalação, testes e
 limitações. Ele foi escrito como artigo técnico e guia para reproduzir o projeto
 completo.
 
-A versão completa e formatada para envio está disponível em
-[docs/Pet_Guardian_IoT_Documentacao_Completa.docx](docs/Pet_Guardian_IoT_Documentacao_Completa.docx).
-Ela inclui links clicáveis, esquemas visuais, tabelas de pinagem e instruções de
-montagem, instalação, uso e validação.
-
-A apresentação pronta para exposição do trabalho está disponível em
-[docs/Pet_Guardian_IoT_Apresentacao.pptx](docs/Pet_Guardian_IoT_Apresentacao.pptx).
-Ela resume problema, solução, arquitetura, hardware, câmera, aplicativo, validação,
-segurança e próximos passos em dez slides editáveis.
+Os esquemas visuais usados na documentacao ficam em [docs/assets](docs/assets). Slides
+nao sao obrigatorios pela orientacao da disciplina; o roteiro tecnico principal esta
+mantido em Markdown para facilitar revisao pelo GitHub.
 
 ## Instalação
 

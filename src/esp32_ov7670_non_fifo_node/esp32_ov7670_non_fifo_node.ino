@@ -247,6 +247,8 @@ bool captureBmp(uint8_t* destination) {
   camera->oneFrame();
   frameCount++;
   lastFrameMs = millis();
+
+  // O frame sai em RGB565; aqui ele vira BMP 24 bits para abrir facil no app/navegador.
   memcpy(destination, bmpHeader, BMP_HEADER_SIZE);
   size_t offset = BMP_HEADER_SIZE;
   for (int row = CAM_HEIGHT - CROP_BOTTOM - 1; row >= CROP_TOP; --row) {
@@ -280,6 +282,8 @@ bool uploadCloudPhoto(long commandId, const String& reason) {
   http.addHeader("x-device-token", CLOUD_DEVICE_TOKEN);
   http.addHeader("x-command-id", String(commandId));
   http.addHeader("x-photo-reason", reason);
+
+  // O comando segue no cabecalho para o backend marcar a solicitacao como concluida.
   Serial.println("[CLOUD] Enviando BMP de " + String(BMP_SIZE) + " bytes. Heap livre: " + String(ESP.getFreeHeap()));
   int httpCode = http.POST(bmp, BMP_SIZE);
   String response = http.getString();
@@ -322,6 +326,7 @@ void pollCameraCommand() {
     return;
   }
 
+  // Somente comandos de foto chegam neste firmware; comandos do hub sao filtrados no backend.
   long commandId = extractJsonLong(response, "commandId");
   String reason = extractJsonString(response, "reason");
   if (reason.length() == 0) reason = "manual";
@@ -334,6 +339,8 @@ void maintainWifi() {
   unsigned long now = millis();
   if (now - lastWifiRetryMs < WIFI_RETRY_INTERVAL_MS) return;
   lastWifiRetryMs = now;
+
+  // Mantem a camera tentando voltar para a nuvem sem reiniciar a placa inteira.
   Serial.println("[WIFI] Reconectando...");
   WiFi.disconnect();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);

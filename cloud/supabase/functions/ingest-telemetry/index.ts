@@ -20,6 +20,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const token = req.headers.get("x-device-token") ?? body.deviceToken;
 
+    // Cada ESP32 publica apenas com o token do dispositivo cadastrado.
     if (!token) {
       return new Response(JSON.stringify({ error: "missing token" }), {
         status: 401,
@@ -57,6 +58,7 @@ Deno.serve(async (req) => {
       payload: body,
     };
 
+    // A tabela guarda campos normalizados e tambem o payload completo para auditoria.
     const { error: insertError } = await supabase.from("telemetry_events").insert(payload);
 
     if (insertError) {
