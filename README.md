@@ -187,6 +187,11 @@ cd android_pet_guardian_app
 - O `service_role` existe somente nas variáveis protegidas das Edge Functions.
 - O bucket `pet-photos` é privado.
 
+## Licença
+
+Este projeto é distribuído sob a licença [MIT](LICENSE). Alguns arquivos auxiliares da
+câmera OV7670 preservam créditos de origem Apache 2.0 nos próprios cabeçalhos.
+
 ## Validação realizada
 
 - App Android compilado e instalado em Samsung S24 Ultra.
