@@ -3,6 +3,14 @@
 #include <HTTPClient.h>
 #include "OV7670.h"
 
+/*
+  Pet Guardian - ESP32 + OV7670 sem FIFO
+
+  Esta placa fica separada do hub para evitar disputa de memoria e pinos.
+  Ela captura BMP localmente por HTTP e tambem consulta uma fila no Supabase
+  para atender pedidos de foto feitos pelo app Android.
+*/
+
 // Configure localmente antes de gravar. Nao publique credenciais reais.
 const char* WIFI_SSID = "SEU_WIFI";
 const char* WIFI_PASSWORD = "SUA_SENHA";
@@ -12,9 +20,11 @@ const char* PHOTO_UPLOAD_URL = "https://SEU_PROJETO.supabase.co/functions/v1/upl
 constexpr unsigned long COMMAND_POLL_INTERVAL_MS = 4000;
 constexpr unsigned long WIFI_RETRY_INTERVAL_MS = 10000;
 
+// Resolucao baixa escolhida para caber em uma ESP32 comum sem PSRAM.
 #define CAM_WIDTH 80
 #define CAM_HEIGHT 60
 
+// Pinagem do barramento paralelo da OV7670 e do controle SCCB/I2C.
 constexpr int SIOD_PIN = 21;
 constexpr int SIOC_PIN = 22;
 constexpr int VSYNC_PIN = 34;
@@ -30,6 +40,7 @@ constexpr int D5_PIN = 13;
 constexpr int D6_PIN = 12;
 constexpr int D7_PIN = 4;
 
+// Corte de bordas: remove regioes instaveis e reduz o tamanho final do BMP.
 constexpr int CROP_LEFT = 4;
 constexpr int CROP_RIGHT = 4;
 constexpr int CROP_TOP = 5;
@@ -40,6 +51,7 @@ constexpr int OUT_HEIGHT = CAM_HEIGHT - CROP_TOP - CROP_BOTTOM;
 OV7670* camera = nullptr;
 WiFiServer server(80);
 constexpr size_t BMP_HEADER_SIZE = 54;
+// BMP exige que cada linha tenha tamanho multiplo de 4 bytes.
 constexpr size_t BMP_ROW_SIZE = ((OUT_WIDTH * 3) + 3) & ~3;
 constexpr size_t BMP_SIZE = BMP_HEADER_SIZE + (BMP_ROW_SIZE * OUT_HEIGHT);
 unsigned char bmpHeader[BMP_HEADER_SIZE];
@@ -53,6 +65,7 @@ String lastReason = "idle";
 String lastCloudStatus = "idle";
 
 void writeLittleEndian32(unsigned char* buffer, int offset, uint32_t value) {
+  // Campos do BMP usam little-endian, por isso cada byte e gravado manualmente.
   buffer[offset + 0] = value & 0xFF;
   buffer[offset + 1] = (value >> 8) & 0xFF;
   buffer[offset + 2] = (value >> 16) & 0xFF;
@@ -65,6 +78,7 @@ void writeLittleEndian16(unsigned char* buffer, int offset, uint16_t value) {
 }
 
 void constructBmpHeader(unsigned char* header, uint32_t width, uint32_t height) {
+  // Cabecalho BMP minimo de 54 bytes para imagem 24 bits sem compressao.
   const uint32_t rowSize = ((width * 3) + 3) & ~3;
   const uint32_t pixelDataSize = rowSize * height;
   const uint32_t fileSize = BMP_HEADER_SIZE + pixelDataSize;
@@ -85,6 +99,7 @@ void constructBmpHeader(unsigned char* header, uint32_t width, uint32_t height) 
 }
 
 void rgb565ToSoftColor(uint16_t pixel, uint8_t& outR, uint8_t& outG, uint8_t& outB) {
+  // A OV7670 entrega RGB565; o app/navegador espera bytes BGR em 24 bits.
   uint8_t r = ((pixel >> 11) & 0x1F) << 3;
   uint8_t g = ((pixel >> 5) & 0x3F) << 2;
   uint8_t b = (pixel & 0x1F) << 3;
@@ -102,6 +117,7 @@ void rgb565ToSoftColor(uint16_t pixel, uint8_t& outR, uint8_t& outG, uint8_t& ou
 }
 
 void buildClarityBmpRow(int sourceRowIndex) {
+  // Converte uma linha do frame em uma linha BMP ja recortada e suavizada.
   memset(bmpRowBuffer, 0, BMP_ROW_SIZE);
   const uint16_t* srcRow = reinterpret_cast<const uint16_t*>(camera->frame + (sourceRowIndex * CAM_WIDTH * 2));
 
@@ -192,6 +208,7 @@ void sendCapture(WiFiClient& client, const String& reason) {
   frameCount++;
   lastFrameMs = millis();
 
+  // Resposta local em BMP: util para testar a camera direto pelo navegador.
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: image/bmp");
   client.println("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
@@ -212,6 +229,7 @@ String readRequestLine(WiFiClient& client) {
 }
 
 String parseReason(const String& requestLine) {
+  // O parametro reason ajuda a diferenciar captura manual, preview e automacao.
   int reasonIndex = requestLine.indexOf("reason=");
   if (reasonIndex < 0) return "manual";
   String reason = requestLine.substring(reasonIndex + 7);
@@ -223,6 +241,7 @@ String parseReason(const String& requestLine) {
 }
 
 String extractJsonString(const String& payload, const String& key) {
+  // Parser simples o suficiente para a resposta curta das Edge Functions.
   String needle = "\"" + key + "\":\"";
   int start = payload.indexOf(needle);
   if (start < 0) return "";
@@ -363,6 +382,7 @@ void serve() {
   }
 
   String requestLine = readRequestLine(client);
+  // Descarta cabecalhos; para este servidor simples so a primeira linha importa.
   while (client.available()) {
     String headerLine = client.readStringUntil('\n');
     if (headerLine == "\r" || headerLine.length() <= 1) {
@@ -386,6 +406,7 @@ void serve() {
 }
 
 void connectWifi() {
+  // A camera precisa de internet para consultar a fila e enviar fotos ao Supabase.
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -405,6 +426,7 @@ void connectWifi() {
 }
 
 void setupCameraNode() {
+  // Inicializa a camera em RGB565 e prepara o cabecalho BMP reutilizado em toda captura.
   camera = new OV7670(
     OV7670::QQQVGA_RGB565,
     SIOD_PIN, SIOC_PIN, VSYNC_PIN, HREF_PIN, XCLK_PIN, PCLK_PIN,
@@ -424,6 +446,7 @@ void setup() {
   Serial.println("[INFO] OV7670 sem FIFO em ESP32 comum");
   Serial.println("[INFO] SIOD->21, SIOC->22, HREF->35, RESET->3.3V, PWDN->GND");
 
+  // A ordem importa: primeiro rede, depois camera, depois servidor local.
   connectWifi();
   setupCameraNode();
 
@@ -435,9 +458,11 @@ void setup() {
 }
 
 void loop() {
+  // Servidor local responde /status e /capture.bmp para depuracao pelo navegador.
   serve();
   maintainWifi();
   unsigned long now = millis();
+  // A cada ciclo configurado, a camera pergunta ao Supabase se existe pedido de foto.
   if (now - lastCommandPollMs >= COMMAND_POLL_INTERVAL_MS) {
     lastCommandPollMs = now;
     pollCameraCommand();

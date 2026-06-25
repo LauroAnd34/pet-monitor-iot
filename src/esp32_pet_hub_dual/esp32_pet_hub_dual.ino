@@ -4,10 +4,21 @@
 #include <DHT.h>
 #include <Preferences.h>
 
+/*
+  Pet Guardian - ESP32 Hub
+
+  Esta placa concentra as leituras dos sensores e as decisoes de automacao.
+  Ela tambem oferece uma pagina local para testes e, quando configurada,
+  envia telemetria para o Supabase.
+*/
+
+// Quando true, a placa cria apenas a propria rede local e nao tenta roteador externo.
 const bool USE_SOFT_AP = false;
 // Credenciais de exemplo. Substitua localmente antes de gravar a placa.
 const char* WIFI_SSID = "SEU_WIFI";
 const char* WIFI_PASSWORD = "SUA_SENHA";
+
+// Rede local de emergencia para acessar http://192.168.4.1 quando o Wi-Fi falhar.
 const char* AP_SSID = "Pet-Sistema";
 const char* AP_PASSWORD = "pet12345";
 IPAddress apIp(192, 168, 4, 1);
@@ -17,6 +28,8 @@ IPAddress apSubnet(255, 255, 255, 0);
 const bool WEBHOOK_ENABLED = false;
 const char* WEBHOOK_URL = "";
 const bool CAMERA_INTEGRATION_READY = true;
+
+// A versao publica fica desligada por seguranca. Na copia local, habilite com tokens reais.
 const bool CLOUD_SYNC_ENABLED = false;
 const char* CLOUD_INGEST_URL = "https://SEU_PROJETO.supabase.co/functions/v1/ingest-telemetry";
 const char* CLOUD_DEVICE_TOKEN = "SEU_DEVICE_TOKEN";
@@ -24,6 +37,7 @@ constexpr unsigned long CLOUD_SYNC_INTERVAL_MS = 15000;
 constexpr unsigned long WIFI_RETRY_INTERVAL_MS = 10000;
 constexpr unsigned long WIFI_FULL_RESTART_INTERVAL_MS = 60000;
 
+// Pinagem fisica do hub de sensores e atuadores.
 constexpr uint8_t DHT_PIN = 4;
 constexpr uint8_t DHT_TYPE = DHT11;
 constexpr uint8_t TRIG_FOOD_PIN = 18;
@@ -36,16 +50,17 @@ constexpr uint8_t LDR_PIN = 35;
 constexpr uint8_t BITDOGLAB_LAMP_SIGNAL_PIN = 13;
 constexpr uint8_t BUZZER_PIN = 32;
 
-// Ponte H - Canal A: motor do comedouro
+// Ponte H - Canal A: motor do comedouro.
 constexpr uint8_t FEED_IN1_PIN = 14;
 constexpr uint8_t FEED_IN2_PIN = 12;
 constexpr uint8_t FEED_EN_PIN  = 25;
 
-// Ponte H - Canal B: bomba d'agua
+// Ponte H - Canal B: bomba d'agua.
 constexpr uint8_t PUMP_IN3_PIN = 26;
 constexpr uint8_t PUMP_IN4_PIN = 23;
 constexpr uint8_t PUMP_EN_PIN  = 33;
 
+// Alturas reais dos recipientes usadas para converter distancia em percentual.
 constexpr float FOOD_CONTAINER_HEIGHT_CM = 10.0f;
 constexpr float WATER_CONTAINER_HEIGHT_CM = 14.0f;
 constexpr int GAS_ALERT_THRESHOLD = 1800;
@@ -66,6 +81,7 @@ DHT dht(DHT_PIN, DHT_TYPE);
 WebServer server(80);
 Preferences preferences;
 
+// Configuracoes que podem ser alteradas pela pagina local e persistidas na flash.
 struct LampConfig {
   bool autoEnabled = true;
   int darkThreshold = DEFAULT_DARK_THRESHOLD;
@@ -84,6 +100,7 @@ struct PumpConfig {
   int lowLevelThreshold = LOW_LEVEL_THRESHOLD;
 };
 
+// Estado da saida de iluminacao. O modo manual tem prioridade sobre a automacao.
 struct PicoLampState {
   bool lampOn = false;
   bool manualMode = false;
@@ -91,6 +108,7 @@ struct PicoLampState {
   String lastMessage = "Controle por pino digital";
 };
 
+// Ultima leitura consolidada do sistema, usada no Serial, no servidor local e na nuvem.
 struct SensorSnapshot {
   float temperatureC = NAN;
   float humidity = NAN;
@@ -131,6 +149,7 @@ bool wifiWasConnected = false;
 bool fallbackAccessPointActive = false;
 
 String wifiStatusLabel(wl_status_t status) {
+  // Traduz codigos da biblioteca WiFi para mensagens compreensiveis no monitor serial.
   switch (status) {
     case WL_CONNECTED: return "conectado";
     case WL_NO_SSID_AVAIL: return "rede nao encontrada";
@@ -143,6 +162,7 @@ String wifiStatusLabel(wl_status_t status) {
 }
 
 bool cloudConfigIsValid() {
+  // Impede envio quando o sketch ainda esta com os placeholders do GitHub.
   String ingestUrl = String(CLOUD_INGEST_URL);
   String deviceToken = String(CLOUD_DEVICE_TOKEN);
   return ingestUrl.startsWith("https://") &&
@@ -175,6 +195,7 @@ String formatDuration(unsigned long ms) {
 }
 
 float readDistanceCm(uint8_t trigPin, uint8_t echoPin) {
+  // O HC-SR04 mede o tempo do eco; depois convertemos para distancia em centimetros.
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
   digitalWrite(trigPin, HIGH);
@@ -199,6 +220,7 @@ int distanceToPercent(float distanceCm, float containerHeightCm) {
 }
 
 void playInternetConnectedMelody() {
+  // Feedback sonoro para saber, sem olhar o monitor serial, que o Wi-Fi conectou.
   const int notes[] = { 659, 784, 988, 1175, 988, 1175 };
   const int durations[] = { 1, 1, 1, 2, 1, 3 };
   const size_t noteCount = sizeof(notes) / sizeof(notes[0]);
@@ -213,6 +235,7 @@ void playInternetConnectedMelody() {
 }
 
 void saveConfig() {
+  // Preferences grava parametros na flash para sobreviver a reset/desligamento.
   preferences.putBool("lamp_auto", lampConfig.autoEnabled);
   preferences.putInt("dark_thr", lampConfig.darkThreshold);
   preferences.putULong("lamp_dur", lampConfig.durationMs);
@@ -229,6 +252,7 @@ void saveConfig() {
 void loadConfig() {
   preferences.begin("pet-dual", false);
 
+  // Se uma chave ainda nao existir, a funcao usa o valor padrao definido no codigo.
   lampConfig.autoEnabled = preferences.getBool("lamp_auto", true);
   lampConfig.darkThreshold = preferences.getInt("dark_thr", DEFAULT_DARK_THRESHOLD);
   lampConfig.durationMs = preferences.getULong("lamp_dur", DEFAULT_LAMP_DURATION_MS);
@@ -243,6 +267,7 @@ void loadConfig() {
 }
 
 void setFeedMotor(bool on) {
+  // A ponte H recebe direcao fixa; EN liga ou corta a alimentacao do motor.
   if (on) {
     digitalWrite(FEED_IN1_PIN, HIGH);
     digitalWrite(FEED_IN2_PIN, LOW);
@@ -257,6 +282,7 @@ void setFeedMotor(bool on) {
 void setPump(bool on) {
   state.pumpOn = on;
 
+  // A bomba opera em um unico sentido, por isso IN3/IN4 ficam fixos.
   if (on) {
     digitalWrite(PUMP_IN3_PIN, HIGH);
     digitalWrite(PUMP_IN4_PIN, LOW);
@@ -278,6 +304,7 @@ void setPumpForDuration(unsigned long durationMs) {
 void sendWebhookAlert(const String& message) {
   state.lastAlert = message;
 
+  // Sem webhook configurado, o alerta continua visivel localmente e no Serial.
   if (!WEBHOOK_ENABLED || WiFi.status() != WL_CONNECTED || String(WEBHOOK_URL).length() == 0) {
     Serial.println("[ALERTA] " + message);
     return;
@@ -885,6 +912,7 @@ void maintainWiFiConnection() {
 }
 
 void setupPins() {
+  // Define entradas/saidas antes de qualquer leitura ou acionamento.
   pinMode(TRIG_FOOD_PIN, OUTPUT);
   pinMode(ECHO_FOOD_PIN, INPUT);
   pinMode(TRIG_WATER_PIN, OUTPUT);
@@ -910,6 +938,7 @@ void setupPins() {
 }
 
 void setupServer() {
+  // API local usada pela pagina embarcada e por testes diretos via navegador.
   server.on("/", HTTP_GET, handleRoot);
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/feed", HTTP_POST, handleFeed);
@@ -924,6 +953,7 @@ void setup() {
   Serial.begin(115200);
   delay(400);
 
+  // Ordem de inicializacao: configuracao salva, sensores, atuadores, rede e servidor.
   state.bootMs = millis();
   loadConfig();
   picoState.brightness = lampConfig.brightness;
@@ -935,15 +965,18 @@ void setup() {
 }
 
 void loop() {
+  // Mantem a interface local responsiva mesmo quando a nuvem estiver indisponivel.
   server.handleClient();
   maintainWiFiConnection();
 
   unsigned long now = millis();
+  // Leitura periodica dos sensores e execucao das automacoes dependem deste intervalo.
   if (now - lastSensorReadMs >= SENSOR_INTERVAL_MS) {
     lastSensorReadMs = now;
     readSensors();
   }
 
+  // A nuvem e sincronizada em ritmo separado para nao travar a leitura dos sensores.
   if (now - lastCloudAttemptMs >= CLOUD_SYNC_INTERVAL_MS) {
     lastCloudAttemptMs = now;
     syncToCloud();
